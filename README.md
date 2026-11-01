@@ -54,7 +54,7 @@
 | **Reading** | `--port 80`, `--port=80`, `-p 80`, `-p80`, clusters (`-vqp 80`), repeated options, subcommands and their aliases, `--`, a lone `-`; the options of a parent work before *and* after the subcommand |
 | **Mistakes** | Every refusal is a `UsageError` — a `CliError` carrying the **status the process should leave with** — and one of six reasons: `UnknownCommand`, `UnknownOption`, `MissingValue`, `MissingArgument`, `UnexpectedArgument`, `InvalidValue`. When the word is a near miss of a real one it says so: ``did you mean `--port`?`` |
 | **Provenance** | Every answer remembers where it came from — the command line, the environment, a file, or the declared default — and a lower source never replaces a higher one: `parsed.source("port")` |
-| **Statuses** | `Exit` is an `enum`: `Exit::Usage` is 2, `Exit::Config` 78, `Exit::Interrupted` 130, and the rest of `sysexits.h` is named, so a program leaves with a number a shell script can read |
+| **Statuses** | `EXIT_USAGE` is 2, `EXIT_CONFIG` 78, `EXIT_INTERRUPTED` 130, and the rest of `sysexits.h` is named (`pub const`s, so `return EXIT_USAGE;` is all a `main` writes), so a program leaves with a number a shell script can read |
 | **Strings** | Read as bytes: an argument holding any language passes through unchanged, and codepoints are decoded only where a screen's width needs them |
 | **Verification** | The portable logic is translated to Python and run — 74 checks — beside a checker for layers and seams that plants 25 faults and fails if any is accepted; the real compiler builds and runs the example in CI |
 | **Known limits** | All of them, with what each would take to lift: [`LIMITATIONS.md`](LIMITATIONS.md) |
@@ -153,7 +153,7 @@ Values are read with `text`, `integer`, `number` and `flag`; positionals with `a
 | Module | For | Status |
 |---|---|---|
 | `core::text` | free functions: UTF-8 cuts and widths, searches, `parseInt`, `parseFloat`, `copyOf` | written, compiled, **run** |
-| `core::error` | `CliError` → `UsageError` → six reasons, `ConfigError`, the `Exit` enum | written, compiled, **run** |
+| `core::error` | `CliError` → `UsageError` → six reasons, `ConfigError`, the `EXIT_*` constants | written, compiled, **run** |
 | `core::spec` | `Command` (class), `Opt` and `Arg` (structs), `Kind` (enum) — the declaration | written, compiled, **run** |
 | `core::suggest` | free functions: `editDistance`, `nearestWord` | written, compiled, **run** |
 | `core::parse` | `Parsed` (class), `Source` (enum), free functions `parseLine` and `readLine` | written, compiled, **run** |
@@ -200,7 +200,8 @@ interface owns the screen. [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) has the 
 
 | Kind | Used for | Here |
 |---|---|---|
-| `enum` | a closed set of named cases | `Exit` (the statuses, `Exit::Usage as i32`), `Kind` (what a value must be), `Source` (where an answer came from) |
+| `const` | a number or a word with a name | `EXIT_USAGE`, `EXIT_CONFIG`, … — the statuses, which `main` returns as they are |
+| `enum` | a closed set of named cases | `Kind` (what a value must be), `Source` (where an answer came from) |
 | `struct` | plain data with a few questions to ask of it, copied wherever it goes | `Opt`, `Arg` |
 | `class` | something with an identity and a state that changes | `Command` (a tree built by chaining), `Parsed` (answers being collected), `Values`, `List` |
 | `exception` | a failure a caller acts on | `CliError` and its six reasons |

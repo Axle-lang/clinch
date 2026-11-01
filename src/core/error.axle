@@ -17,52 +17,45 @@
 
 use crate::core::text::copyOf;
 
-/**
- * The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case; the
- * number is `Exit::Usage as i32`, or `.code()`.
- */
-pub enum Exit : i32 {
-    /** The work was done. */
-    Ok = 0,
+// The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case. They are
+// constants, not an enum or a class of functions: `main` returns an `i32`, and `return EXIT_USAGE;` is all
+// a program has to write.
 
-    /** The program ran and found nothing wrong, except what it was asked to report (as `grep` does). */
-    Failed = 1,
+/** The work was done. */
+pub const EXIT_OK : i32 = 0;
 
-    /** The command line was not understood. */
-    Usage = 2,
+/** The program ran and found nothing wrong, except what it was asked to report (as `grep` does). */
+pub const EXIT_FAILED : i32 = 1;
 
-    /** The data given was wrong in its content. */
-    Data = 65,
+/** The command line was not understood. */
+pub const EXIT_USAGE : i32 = 2;
 
-    /** An input that was named does not exist or cannot be read. */
-    NoInput = 66,
+/** The data given was wrong in its content. */
+pub const EXIT_DATA : i32 = 65;
 
-    /** A service the program needs is not available. */
-    Unavailable = 69,
+/** An input that was named does not exist or cannot be read. */
+pub const EXIT_NO_INPUT : i32 = 66;
 
-    /** An internal fault. */
-    Software = 70,
+/** A service the program needs is not available. */
+pub const EXIT_UNAVAILABLE : i32 = 69;
 
-    /** The system failed an input or output operation. */
-    Io = 74,
+/** An internal fault. */
+pub const EXIT_SOFTWARE : i32 = 70;
 
-    /** A permission is missing. */
-    NoPermission = 77,
+/** The system failed an input or output operation. */
+pub const EXIT_IO : i32 = 74;
 
-    /** A configuration cannot be used. */
-    Config = 78,
+/** A permission is missing. */
+pub const EXIT_NO_PERMISSION : i32 = 77;
 
-    /** The person cancelled with Ctrl-C: 128 plus the signal's number, as a shell reports it. */
-    Interrupted = 130,
+/** A configuration cannot be used. */
+pub const EXIT_CONFIG : i32 = 78;
 
-    /** The process was asked to stop with SIGTERM. */
-    Terminated = 143,
+/** The person cancelled with Ctrl-C: 128 plus the signal's number, as a shell reports it. */
+pub const EXIT_INTERRUPTED : i32 = 130;
 
-    /** The number the process leaves with. */
-    pub fn code(self) : i32 {
-        return self as i32;
-    }
-}
+/** The process was asked to stop with SIGTERM. */
+pub const EXIT_TERMINATED : i32 = 143;
 
 /**
  * "did you mean `x`?" for a suggestion, or nothing for none. It is a function, not a conditional inside the
@@ -92,7 +85,7 @@ pub exception UsageError : CliError {
     pub hint : string;
 
     constructor(message : string, hint : string) {
-        super(message, Exit::Usage as i32);
+        super(message, EXIT_USAGE);
         self.hint = copyOf(hint);
     }
 
@@ -206,7 +199,7 @@ pub exception ConfigError : CliError {
     pub source : string;
 
     constructor(source : string, message : string) {
-        super(source + ": " + message, Exit::Config as i32);
+        super(source + ": " + message, EXIT_CONFIG);
         self.source = copyOf(source);
     }
 }

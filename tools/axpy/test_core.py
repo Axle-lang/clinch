@@ -171,7 +171,7 @@ check("the version line names the program", g.parseProcess(app()).versionLine() 
 check("a report without a hint is one line", g.UsageError("boom", "").report() == "error: boom")
 
 # --- exit codes ------------------------------------------------------------------------------
-check("exit statuses follow sysexits", (g.Exit.Ok.code(), g.Exit.Usage.code(), g.Exit.Config.code(), g.Exit.Interrupted.code()) == (0, 2, 78, 130))
+check("exit statuses follow sysexits", (g.EXIT_OK, g.EXIT_USAGE, g.EXIT_CONFIG, g.EXIT_INTERRUPTED) == (0, 2, 78, 130))
 c = g.ConfigError("app.toml", "line 3: expected `=`")
 check("a config error names its source and exits 78", "app.toml" in c.message and c.code == 78 and isinstance(c, g.CliError))
 

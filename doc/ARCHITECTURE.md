@@ -25,7 +25,8 @@ independent.
 
 | Kind | Used for | Here |
 |---|---|---|
-| `enum` | a closed set of named cases | `Exit`, `Kind`, `Source` |
+| `const` | a number with a name | the `EXIT_*` statuses |
+| `enum` | a closed set of named cases | `Kind`, `Source` |
 | `struct` | plain data, copied on assignment, no identity | `Opt`, `Arg` |
 | `class` | an identity and a state that changes | `Command`, `Parsed`, `Commands`, `Values`, `List` |
 | `exception` | a failure a caller acts on | `CliError` and its reasons |
