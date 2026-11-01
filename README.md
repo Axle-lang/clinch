@@ -130,6 +130,12 @@ cd examples/hello
 axle build && ./target/hello serve --port 9000 site
 ```
 
+**Two ways in, one parser.** `parseProcess(root)` reads the process's own command line — it is what a program calls.
+`parseLine(root, words)` is the same read over a `Values<string>` you hand it: a test, a line typed in a prompt, a
+file of arguments. The first is the second applied to `processWords()`. Both return a `Parsed` and raise a
+`UsageError`; `readProcess` and `readLine` stop before the defaults are added, so the environment and a file can
+be offered first.
+
 ## 🔎 What it reads
 
 | Form | Example | Read as |

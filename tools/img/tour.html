@@ -20,12 +20,17 @@
 <div class="line">                      <span class="s">"text|json|csv"</span>, <span class="s">"text"</span>))</div>
 <div class="line">    .<span class="f">arg</span>(<span class="f">Arg::required</span>(<span class="s">"root"</span>, <span class="s">"Folder to serve"</span>));</div>
 <div class="gap"></div>
-<div class="line"><span class="k">let</span> p : Parsed = <span class="f">parseLine</span>(root, words);</div>
-<div class="line"><span class="k">let</span> port : i64 = p.<span class="f">integer</span>(<span class="s">"port"</span>);</div>
-<div class="line"><span class="k">let</span> origin : Source = p.<span class="f">source</span>(<span class="s">"port"</span>);</div>
+<div class="line"><span class="k">let</span> root : Command = <span class="f">Command::create</span>(<span class="s">"tool"</span>, <span class="s">"A tool"</span>)</div>
+<div class="line">    .<span class="f">version</span>(<span class="s">"1.2.0"</span>)</div>
+<div class="line">    .<span class="f">sub</span>(serve);</div>
 <div class="gap"></div>
-<div class="line"><span class="c">// Anything else is a UsageError: a message, a</span></div>
-<div class="line"><span class="c">// hint when one is near, and status 2.</span></div>
+<div class="line"><span class="c">// the process's own command line, read and checked</span></div>
+<div class="line"><span class="k">let</span> p : Parsed = <span class="f">parseProcess</span>(root);</div>
+<div class="line"><span class="k">let</span> port : i64 = p.<span class="f">integer</span>(<span class="s">"port"</span>);</div>
+<div class="line"><span class="k">let</span> dir : string = p.<span class="f">arg</span>(<span class="s">"root"</span>);</div>
+<div class="gap"></div>
+<div class="line"><span class="c">// a mistake is a UsageError: catch it in main,</span></div>
+<div class="line"><span class="c">// print e.report(), return e.code (2).</span></div>
 </div>
 <div class="out mono">
 <div class="cmd">$ tool serve --prot 80 site</div>
@@ -45,4 +50,4 @@
 <div class="err">error: missing required argument &lt;root&gt;</div><div class="gap"></div>
 <div class="st">every one of these exits with status 2</div>
 </div></div>
-<div class="foot">Printed by the library's own sources, translated to Python — the messages are the ones the compiled program prints (<span class="mono">examples/hello</span> runs on Windows and Linux in CI).</div>
+<div class="foot">The messages are the library's own, printed from its sources translated to Python; <span class="mono">examples/hello</span> prints the same kind of lines compiled, on Windows and Linux, in CI. <span class="mono">parseLine(root, words)</span> is the same read over a list of words, for a test.</div>
