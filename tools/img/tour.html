@@ -13,6 +13,8 @@
 <h2>Declare it <em>once</em>. Read it, check it, and correct the typo.</h2>
 <div class="card grid">
 <div class="code mono">
+<div class="line"><span class="k">use</span> clinch::{<span class="f">Arg</span>, <span class="f">Command</span>, <span class="f">Opt</span>, <span class="f">Parsed</span>, <span class="f">parseProcess</span>};</div>
+<div class="gap"></div>
 <div class="line"><span class="k">let</span> serve : Command = <span class="f">Command::create</span>(<span class="s">"serve"</span>, <span class="s">"Run the server"</span>)</div>
 <div class="line">    .<span class="f">alias</span>(<span class="s">"run"</span>)</div>
 <div class="line">    .<span class="f">add</span>(<span class="f">Opt::integer</span>(<span class="s">"-p, --port &lt;n&gt;"</span>, <span class="s">"Port"</span>, <span class="s">"8080"</span>))</div>

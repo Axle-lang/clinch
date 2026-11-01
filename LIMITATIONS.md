@@ -10,6 +10,11 @@ This file says what the code claims and how far that has been checked.
 - **Chaining starts from a `static fn`.** `Command::create(...).add(...)` is checked on the compiler; `new Command(...)
   .add(...)` is not valid Axle (`new X()` without parentheses reads as a statement), so the library offers
   `create` and never asks for the other form.
+- **No `root.parse(words)`.** A method on `Command` that reads the line was tried: `core::spec` would call
+  `core::parse`, which already imports `spec`. The compiler accepts the cycle but type-checks a generic parameter
+  (`Values<string>`) that crosses it as a bare `Values` (E0001 on `axle check`), so `parseLine`, `readLine` and
+  `parseProcess` stay free functions. A non-generic `Words` type would lift it, at the price of one more type
+  in the rare path (`parseLine`); not worth it while `parseProcess` is the way in.
 - **Numbers.** Integers are decimal with an optional sign and at most 18 digits. Floats are decimal with an
   optional fraction; there is no exponent (`1e3`) and no `inf` or `nan`.
 - **Case.** Suggestions ignore the case of ASCII letters only.
