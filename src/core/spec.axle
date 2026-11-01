@@ -163,7 +163,7 @@ pub class Opt : Copy<Opt> {
 
     /** An option that may be given again and again: `-I dir -I dir`. */
     pub static fn many(spec : string, help : string) : Opt {
-        let o : Opt = new Opt(spec, help, Kind::Text, "", "");
+        let mut o : Opt = new Opt(spec, help, Kind::Text, "", "");
         o.repeatable = true;
         return o;
     }
@@ -260,7 +260,7 @@ pub class Opt : Copy<Opt> {
 
     /** A separate object with the same declaration. */
     pub fn copy(self) : Opt {
-        let o : Opt = new Opt("", self.help, self.kind, self.fallback, self.choices);
+        let mut o : Opt = new Opt("", self.help, self.kind, self.fallback, self.choices);
         o.name = self.name;
         o.letter = self.letter;
         o.value = self.value;
@@ -320,6 +320,46 @@ pub class Arg : Copy<Arg> {
     }
 }
 
+/**
+ * A sequence of commands. A `List` asks its rows to be `Copy`, and a command cannot say so of itself while
+ * it is still being declared, so the commands inside a command are kept by this one.
+ */
+pub class Commands {
+    rows : Command[];
+    used : i32 = 0;
+    room : i32;
+
+    /** An empty sequence. */
+    constructor() {
+        self.room = 8;
+        self.rows = malloc<Command>(self.room as i64);
+    }
+
+    /** Put `c` at the end; the sequence takes it over. */
+    pub fn add(mut self, own c : Command) : void {
+        if (self.used == self.room) {
+            let mut bigger : Command[] = malloc<Command>((self.room * 2) as i64);
+            for (i of 0..self.used) {
+                bigger[i as i64] = self.rows[i as i64].copy();
+            }
+            self.rows = bigger;
+            self.room = self.room * 2;
+        }
+        self.rows[self.used as i64] = c;
+        self.used = self.used + 1;
+    }
+
+    /** How many there are. */
+    pub fn size(self) : i32 {
+        return self.used;
+    }
+
+    /** The one at position `i`. */
+    pub fn at(self, i : i32) : Command {
+        return self.rows[i as i64];
+    }
+}
+
 /** A command: a program, or one of its subcommands. */
 pub class Command : Copy<Command> {
     /** What it is typed as. */
@@ -341,7 +381,7 @@ pub class Command : Copy<Command> {
     pub args     : List<Arg>;
 
     /** Its subcommands. */
-    pub subs     : List<Command>;
+    pub subs     : Commands;
 
     /** The example lines `--help` ends with, and what each does. */
     pub lines    : Values<string>;
@@ -356,7 +396,7 @@ pub class Command : Copy<Command> {
         self.aliases = new Values<string>();
         self.opts = new List<Opt>();
         self.args = new List<Arg>();
-        self.subs = new List<Command>();
+        self.subs = new Commands();
         self.lines = new Values<string>();
         self.notes = new Values<string>();
     }
@@ -459,7 +499,7 @@ pub class Command : Copy<Command> {
 
     /** A separate object with the same declaration, subcommands included. */
     pub fn copy(self) : Command {
-        let c : Command = new Command(self.name, self.about);
+        let mut c : Command = new Command(self.name, self.about);
         c.ver = self.ver;
         c.hidden = self.hidden;
         for (i of 0..self.aliases.size()) {
