@@ -45,11 +45,8 @@ fn main() : i32 {
         return 0;
     } catch e : UsageError {
         println("error: " + e.message);
-        println("stage 1: message read");
         let code : i32 = e.code;
-        println("stage 2: code read");
         let hint : string = e.hint;
-        println("stage 3: hint read");
         if (hint != "") {
             println("  " + hint);
         }

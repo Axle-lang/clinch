@@ -7,7 +7,7 @@
 // suggestion is worse than none.
 
 use crate::core::list::Values;
-use crate::core::text::Utf8;
+use crate::core::text::{Str, Utf8};
 use std::text::StringBuilder;
 
 /** Distance between words, and the nearest of several. */
@@ -70,7 +70,7 @@ pub class Suggest {
                 best = words.at(i);
             }
         }
-        return best;
+        return Str::copy(best);
     }
 
     /** `s` with the capitals of ASCII made small; every other codepoint is kept as it is. */

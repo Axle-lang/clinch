@@ -95,13 +95,13 @@ pub class Opt : Copy<Opt> {
     /** An option as declared by `spec`, e.g. `-j, --jobs <n>`. */
     constructor(spec : string, help : string, kind : Kind, fallback : string, choices : string) {
         let (name, letter, value) = Opt::readSpec(spec);
-        self.name = name;
-        self.letter = letter;
-        self.value = value;
+        self.name = Str::copy(name);
+        self.letter = Str::copy(letter);
+        self.value = Str::copy(value);
         self.kind = kind;
-        self.help = help;
-        self.fallback = fallback;
-        self.choices = choices;
+        self.help = Str::copy(help);
+        self.fallback = Str::copy(fallback);
+        self.choices = Str::copy(choices);
         if (kind != Kind::Flag && value == "") {
             self.value = kind.word();
         }
@@ -285,8 +285,8 @@ pub class Arg : Copy<Arg> {
     pub variadic : bool;
 
     constructor(name : string, help : string, needed : bool, variadic : bool) {
-        self.name = name;
-        self.help = help;
+        self.name = Str::copy(name);
+        self.help = Str::copy(help);
         self.needed = needed;
         self.variadic = variadic;
     }
@@ -391,8 +391,8 @@ pub class Command : Copy<Command> {
     pub hidden   : bool = false;
 
     constructor(name : string, about : string) {
-        self.name = name;
-        self.about = about;
+        self.name = Str::copy(name);
+        self.about = Str::copy(about);
         self.aliases = new Values<string>();
         self.opts = new List<Opt>();
         self.args = new List<Arg>();

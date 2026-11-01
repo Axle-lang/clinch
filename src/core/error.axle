@@ -15,6 +15,8 @@
 //     InvalidValue     a value of the wrong kind: `expected` says what would have done
 //   ConfigError      a file, an environment variable or a default that cannot be used
 
+use crate::core::text::Str;
+
 /** The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case. */
 pub class Exit {
     /** The work was done. */
@@ -110,7 +112,7 @@ pub exception UsageError : CliError {
 
     constructor(message : string, hint : string) {
         super(message, 2);
-        self.hint = hint;
+        self.hint = Str::copy(hint);
     }
 }
 
@@ -127,8 +129,8 @@ pub exception UnknownCommand : UsageError {
             "unknown command `" + name + "`",
             Hint::didYouMean(suggestion)
         );
-        self.name = name;
-        self.suggestion = suggestion;
+        self.name = Str::copy(name);
+        self.suggestion = Str::copy(suggestion);
     }
 }
 
@@ -145,8 +147,8 @@ pub exception UnknownOption : UsageError {
             "unknown option `" + name + "`",
             Hint::didYouMean(suggestion)
         );
-        self.name = name;
-        self.suggestion = suggestion;
+        self.name = Str::copy(name);
+        self.suggestion = Str::copy(suggestion);
     }
 }
 
@@ -157,7 +159,7 @@ pub exception MissingValue : UsageError {
 
     constructor(option : string, expects : string) {
         super("option `" + option + "` needs a value", "give it as `" + option + " <" + expects + ">`");
-        self.option = option;
+        self.option = Str::copy(option);
     }
 }
 
@@ -168,7 +170,7 @@ pub exception MissingArgument : UsageError {
 
     constructor(argument : string) {
         super("missing required argument <" + argument + ">", "");
-        self.argument = argument;
+        self.argument = Str::copy(argument);
     }
 }
 
@@ -179,7 +181,7 @@ pub exception UnexpectedArgument : UsageError {
 
     constructor(value : string) {
         super("unexpected argument `" + value + "`", "");
-        self.value = value;
+        self.value = Str::copy(value);
     }
 }
 
@@ -202,10 +204,10 @@ pub exception InvalidValue : UsageError {
             "invalid value `" + value + "` for `" + option + "`: expected " + expected,
             Hint::didYouMean(suggestion)
         );
-        self.option = option;
-        self.value = value;
-        self.expected = expected;
-        self.suggestion = suggestion;
+        self.option = Str::copy(option);
+        self.value = Str::copy(value);
+        self.expected = Str::copy(expected);
+        self.suggestion = Str::copy(suggestion);
     }
 }
 
@@ -216,6 +218,6 @@ pub exception ConfigError : CliError {
 
     constructor(source : string, message : string) {
         super(source + ": " + message, 78);
-        self.source = source;
+        self.source = Str::copy(source);
     }
 }
