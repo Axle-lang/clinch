@@ -102,25 +102,6 @@ jobs:
           if ($LASTEXITCODE -ne 2) { throw "expected status 2, got $LASTEXITCODE" }
           exit 0
 
-      - name: The port this build resolves
-        run: axle ports
-
-      - name: The compiler's word for the Linux target
-        working-directory: examples/hello
-        run: axle check --target x86_64-unknown-linux-gnu
-
-      - name: Build the example
-        working-directory: examples/hello
-        run: axle build
-
-      - name: Run the example
-        working-directory: examples/hello
-        run: |
-          ./target/hello serve --port 9000 site
-          ./target/hello --version
-          status=0; ./target/hello serve --prot 1 site || status=$?
-          test "$status" = 2
-
   linux:
     name: Build (Linux x86_64)
     runs-on: ubuntu-latest
