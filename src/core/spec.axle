@@ -261,9 +261,9 @@ pub class Opt : Copy<Opt> {
     /** A separate object with the same declaration. */
     pub fn copy(self) : Opt {
         let mut o : Opt = new Opt("", self.help, self.kind, self.fallback, self.choices);
-        o.name = self.name;
-        o.letter = self.letter;
-        o.value = self.value;
+        o.name = Str::copy(self.name);
+        o.letter = Str::copy(self.letter);
+        o.value = Str::copy(self.value);
         o.repeatable = self.repeatable;
         o.hidden = self.hidden;
         return o;
@@ -425,8 +425,8 @@ pub class Command : Copy<Command> {
     }
 
     /** Let it answer to another name too. */
-    pub fn alias(mut self, own name : string) : Command {
-        self.aliases.add(name);
+    pub fn alias(mut self, name : string) : Command {
+        self.aliases.add(Str::copy(name));
         return self;
     }
 
@@ -437,9 +437,9 @@ pub class Command : Copy<Command> {
     }
 
     /** Add an example: the line as typed, and what it does. */
-    pub fn example(mut self, own line : string, own note : string) : Command {
-        self.lines.add(line);
-        self.notes.add(note);
+    pub fn example(mut self, line : string, note : string) : Command {
+        self.lines.add(Str::copy(line));
+        self.notes.add(Str::copy(note));
         return self;
     }
 
@@ -488,10 +488,10 @@ pub class Command : Copy<Command> {
     pub fn subNames(self) : Values<string> {
         let out : Values<string> = new Values<string>();
         for (i of 0..self.subs.size()) {
-            out.add(self.subs.at(i).name);
+            out.add(Str::copy(self.subs.at(i).name));
             let c : Command = self.subs.at(i);
             for (k of 0..c.aliases.size()) {
-                out.add(c.aliases.at(k));
+                out.add(Str::copy(c.aliases.at(k)));
             }
         }
         return out;
@@ -500,10 +500,10 @@ pub class Command : Copy<Command> {
     /** A separate object with the same declaration, subcommands included. */
     pub fn copy(self) : Command {
         let mut c : Command = new Command(self.name, self.about);
-        c.ver = self.ver;
+        c.ver = Str::copy(self.ver);
         c.hidden = self.hidden;
         for (i of 0..self.aliases.size()) {
-            c.aliases.add(self.aliases.at(i));
+            c.aliases.add(Str::copy(self.aliases.at(i)));
         }
         for (i of 0..self.opts.size()) {
             c.opts.add(self.opts.at(i).copy());
@@ -515,8 +515,8 @@ pub class Command : Copy<Command> {
             c.subs.add(self.subs.at(i).copy());
         }
         for (i of 0..self.lines.size()) {
-            c.lines.add(self.lines.at(i));
-            c.notes.add(self.notes.at(i));
+            c.lines.add(Str::copy(self.lines.at(i)));
+            c.notes.add(Str::copy(self.notes.at(i)));
         }
         return c;
     }

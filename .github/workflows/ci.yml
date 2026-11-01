@@ -21,6 +21,8 @@ env:
   # The compiler these sources need. The installers serve whatever is current, so the jobs check instead
   # of assuming: an older `axle` fails with one clear line rather than a hundred confusing ones.
   AXLE_MIN: '0.18.0'
+  # The compiler's diagnostics are read in this log; colour codes only get in the way.
+  NO_COLOR: '1'
 
 jobs:
   checks:

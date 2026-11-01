@@ -103,6 +103,14 @@ pub class Utf8 {
 
 /** Searches and cuts over bytes, and the numbers an argument may hold. */
 pub class Str {
+    /**
+     * A separate string with the same text. A string read out of an object cannot be handed to a new owner
+     * (two owners would release one allocation); a copy is a value of its own and can.
+     */
+    pub static fn copy(s : string) : string {
+        return Utf8::slice(s, 0, s.byteLength);
+    }
+
     /** Whether `text` has `word` at byte `at`. */
     pub static fn startsAt(text : string, at : i64, word : string) : bool {
         if (at < 0 || at + word.byteLength > text.byteLength) {
