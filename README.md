@@ -5,7 +5,7 @@
 Subcommands, options, positional arguments, validation with *"did you mean…?"*, and exit codes that mean
 something — all read from one description of what the program accepts.
 
-```axle
+```rust
 let serve : Command = Command::create("serve", "Run the server")
     .alias("run")
     .add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"))
