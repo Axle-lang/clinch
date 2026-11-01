@@ -2,7 +2,7 @@
 //
 // Build & run:  axle build, then  target/hello serve --port 9000 site   (or --version, or a typo of either)
 
-use clinch::{Arg, Command, Opt, Parsed, UsageError};
+use clinch::{Arg, Command, Opt, Parsed, UsageError, parseProcess};
 
 /** What this program accepts. */
 fn spec() : Command {
@@ -18,7 +18,7 @@ fn spec() : Command {
 
 fn main() : i32 {
     try {
-        let parsed : Parsed = spec().parseProcess();
+        let parsed : Parsed = parseProcess(spec());
         if (parsed.versionAsked) {
             println(parsed.versionLine());
             return 0;
