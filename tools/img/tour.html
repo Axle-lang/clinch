@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+.grid { display:grid; grid-template-columns: 1.1fr 1fr; gap: 0; }
+.code, .out { padding: 28px 32px; font-size: 18px; line-height: 1.7; }
+.code { border-right: 1px solid #2c2c44; }
+.out { background:#161624; border-radius: 0 18px 18px 0; color:#cfcce8 }
+.k { color:#8f84ff } .t { color:#7fd6a0 } .c { color:#6f6b96 } .s { color:#f0c95a } .f { color:#9db8ff }
+.line { white-space: pre; } .gap { height: 14px }
+.cmd { white-space: pre; color:#7fd6a0 } .res { white-space: pre; color:#cfcce8 } .err { white-space: pre; color:#ff9d7a } .hint { white-space: pre; color:#f0c95a }
+.st { color:#6f6b96 }
+</style>
+<h1>Clinch · a short tour</h1>
+<h2>Declare it <em>once</em>. Read it, check it, and correct the typo.</h2>
+<div class="card grid">
+<div class="code mono">
+<div class="line"><span class="k">let</span> serve : Command = <span class="f">Command::create</span>(<span class="s">"serve"</span>, <span class="s">"Run the server"</span>)</div>
+<div class="line">    .<span class="f">alias</span>(<span class="s">"run"</span>)</div>
+<div class="line">    .<span class="f">add</span>(<span class="f">Opt::integer</span>(<span class="s">"-p, --port &lt;n&gt;"</span>, <span class="s">"Port"</span>, <span class="s">"8080"</span>))</div>
+<div class="line">    .<span class="f">add</span>(<span class="f">Opt::choice</span>(<span class="s">"--format &lt;fmt&gt;"</span>, <span class="s">"Output"</span>,</div>
+<div class="line">                      <span class="s">"text|json|csv"</span>, <span class="s">"text"</span>))</div>
+<div class="line">    .<span class="f">arg</span>(<span class="f">Arg::required</span>(<span class="s">"root"</span>, <span class="s">"Folder to serve"</span>));</div>
+<div class="gap"></div>
+<div class="line"><span class="k">let</span> p : Parsed = <span class="f">Parser::parse</span>(root, words);</div>
+<div class="line"><span class="k">let</span> port : i64 = p.<span class="f">integer</span>(<span class="s">"port"</span>);</div>
+<div class="line"><span class="k">let</span> origin : Source = p.<span class="f">source</span>(<span class="s">"port"</span>);</div>
+<div class="gap"></div>
+<div class="line"><span class="c">// Anything else is a UsageError: a message, a</span></div>
+<div class="line"><span class="c">// hint when one is near, and status 2.</span></div>
+</div>
+<div class="out mono">
+<div class="cmd">$ tool serve --prot 80 site</div>
+<div class="err">error: unknown option `--prot`</div>
+<div class="hint">  did you mean `--port`?</div><div class="gap"></div>
+<div class="cmd">$ tool srve site</div>
+<div class="err">error: unknown command `srve`</div>
+<div class="hint">  did you mean `serve`?</div><div class="gap"></div>
+<div class="cmd">$ tool serve --port abc site</div>
+<div class="err">error: invalid value `abc` for `--port`:
+       expected a whole number</div><div class="gap"></div>
+<div class="cmd">$ tool serve --format jsno site</div>
+<div class="err">error: invalid value `jsno` for `--format`:
+       expected one of text, json, csv</div>
+<div class="hint">  did you mean `json`?</div><div class="gap"></div>
+<div class="cmd">$ tool serve</div>
+<div class="err">error: missing required argument &lt;root&gt;</div><div class="gap"></div>
+<div class="st">every one of these exits with status 2</div>
+</div></div>
+<div class="foot">Printed by the library's own sources, translated to Python — the messages are the ones the compiled program prints (<span class="mono">examples/hello</span> runs on Windows and Linux in CI).</div>

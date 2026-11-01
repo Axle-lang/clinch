@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+.cols { display: grid; grid-template-columns: 1.05fr 1fr; gap: 22px; }
+.col { padding: 28px 30px; }
+.col .t { font-size: 28px; font-weight: 700; margin-bottom: 6px } .col p { color:#b9b6d6; font-size:18px; line-height:1.5; margin: 8px 0 18px }
+.tree { font-size: 18px; line-height: 1.75; white-space: pre; color:#d8d5ee }
+.tree .b { color:#9db8ff } .tree .o { color:#ff9d7a } .tree .c { color:#7f7ba8 } .tree .y { color:#f0c95a }
+.chain { display:flex; flex-direction:column; gap: 10px; margin-top: 6px }
+.step { display:flex; align-items:center; gap:16px; padding: 14px 18px; border-radius: 14px; background:#12121c; border:1px solid #2c2c44; font-size: 20px }
+.step b { width: 190px; font-size: 20px } .step span { color:#b9b6d6; font-size: 16px }
+.step.on { border-color:#5B4BE1 } .step.todo { opacity:.5; border-style:dashed }
+.rank { width: 30px; height:30px; border-radius:999px; background:#2b2750; color:#cfcaff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px }
+.note { margin-top: 16px; font-size: 16px; color:#8683a8; line-height:1.5 }
+</style>
+<h1>Clinch · the contract</h1>
+<h2>A mistake <em>names</em> itself. An answer remembers <em>where it came from</em>.</h2>
+<div class="cols">
+ <div class="card col"><div class="t">One family, one status</div>
+  <p>Everything the library throws is a <span class="mono">CliError</span> and carries the status the process should leave with.</p>
+<div class="tree mono"><span class="b">CliError</span>
+├─ <span class="b">UsageError</span>             <span class="o">2</span>   <span class="c">the line is not one we accept</span>
+│   ├─ UnknownCommand      <span class="c">+ nearest command</span>
+│   ├─ UnknownOption       <span class="c">+ nearest option</span>
+│   ├─ MissingValue
+│   ├─ MissingArgument
+│   ├─ UnexpectedArgument
+│   └─ InvalidValue        <span class="c">+ what would have done</span>
+└─ <span class="b">ConfigError</span>            <span class="o">78</span>  <span class="c">a file or variable we cannot use</span>
+
+<span class="y">Exit::ok</span> 0   <span class="y">usage</span> 2   <span class="y">data</span> 65   <span class="y">noInput</span> 66   <span class="y">unavailable</span> 69
+<span class="y">software</span> 70   <span class="y">io</span> 74   <span class="y">noPermission</span> 77   <span class="y">config</span> 78   <span class="y">interrupted</span> 130</div></div>
+ <div class="card col"><div class="t">Who wins</div>
+  <p>Each answer keeps its <span class="mono">Source</span>, so “why is this 4?” has an answer: <span class="mono">parsed.source("jobs")</span>.</p>
+  <div class="chain">
+   <div class="step on"><div class="rank">1</div><b>command line</b><span>Source::Argv · parsed and checked</span></div>
+   <div class="step todo"><div class="rank">2</div><b>environment</b><span>Source::Env · reader planned</span></div>
+   <div class="step todo"><div class="rank">3</div><b>config file</b><span>Source::Config · reader planned</span></div>
+   <div class="step on"><div class="rank">4</div><b>default</b><span>Source::Default · declared with the option</span></div>
+  </div>
+  <div class="note">The order is implemented and tested today (<span class="mono">Parsed::offer</span> keeps the higher source); the readers that feed levels 2 and 3 are the next slices.</div></div>
+</div>
