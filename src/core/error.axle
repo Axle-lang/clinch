@@ -78,6 +78,20 @@ pub class Exit {
     }
 }
 
+/** The sentences that follow an error. */
+pub class Hint {
+    /**
+     * "did you mean `x`?" for a suggestion, or nothing for none. It is a function, not a conditional inside
+     * the call to `super`: the text must be a value of its own when the exception takes it.
+     */
+    pub static fn didYouMean(suggestion : string) : string {
+        if (suggestion == "") {
+            return "";
+        }
+        return "did you mean `" + suggestion + "`?";
+    }
+}
+
 /** Everything this library throws. */
 pub exception CliError {
     /** The status the process should leave with. */
@@ -111,7 +125,7 @@ pub exception UnknownCommand : UsageError {
     constructor(name : string, suggestion : string) {
         super(
             "unknown command `" + name + "`",
-            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+            Hint::didYouMean(suggestion)
         );
         self.name = name;
         self.suggestion = suggestion;
@@ -129,7 +143,7 @@ pub exception UnknownOption : UsageError {
     constructor(name : string, suggestion : string) {
         super(
             "unknown option `" + name + "`",
-            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+            Hint::didYouMean(suggestion)
         );
         self.name = name;
         self.suggestion = suggestion;
@@ -186,7 +200,7 @@ pub exception InvalidValue : UsageError {
     constructor(option : string, value : string, expected : string, suggestion : string) {
         super(
             "invalid value `" + value + "` for `" + option + "`: expected " + expected,
-            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+            Hint::didYouMean(suggestion)
         );
         self.option = option;
         self.value = value;

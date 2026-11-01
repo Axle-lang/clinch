@@ -33,6 +33,14 @@ fn words() : Values<string> {
 fn main() : i32 {
     try {
         let parsed : Parsed = Parser::parse(spec(), words());
+        if (parsed.versionAsked) {
+            println("hello 0.1.0");
+            return 0;
+        }
+        if (parsed.helpAsked) {
+            println("usage: hello [--verbose] serve [--port <n>] <root>");
+            return 0;
+        }
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
         return 0;
     } catch e : UsageError {
