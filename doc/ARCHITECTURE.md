@@ -9,7 +9,7 @@ Layers, bottom to top. A module imports from below, never from above or from a s
 | `raw` | raw memory, for the seams — *not written; nothing needs it yet* | no |
 | `sys` | one answer per port (`win32`, `linux`): terminal, signals — *not written; `src/sys/` does not exist yet* | yes — the only place |
 | `term` | prompts, progress, cancellation, over `sys` — *not written* | through `sys` |
-| `app` | `Args` (written): the process's own command line. `App::run` (planned): parse, resolve configuration, run, report | `Args` asks `std` for the process's arguments and nothing else |
+| `app` | `parseProcess` (written): the process's own command line. `App::run` (planned): parse, resolve configuration, run, report | `parseProcess` asks `std` for the process's arguments and nothing else |
 
 The point of the split is the tests: everything in `core` runs as Python over the translated sources, with
 no terminal. The terminal and the signals are behind a seam that a fake answers.
@@ -20,3 +20,16 @@ A later library for full-screen interfaces will want the same arguments, the sam
 errors. It will depend on `clinch::core` for those. It will **not** share a renderer: `clinch` writes lines;
 a full-screen interface owns the screen. Keeping the output of `clinch` to lines is what keeps the two
 independent.
+
+## Which structure for what
+
+| Kind | Used for | Here |
+|---|---|---|
+| `enum` | a closed set of named cases | `Exit`, `Kind`, `Source` |
+| `struct` | plain data, copied on assignment, no identity | `Opt`, `Arg` |
+| `class` | an identity and a state that changes | `Command`, `Parsed`, `Commands`, `Values`, `List` |
+| `exception` | a failure a caller acts on | `CliError` and its reasons |
+| free `fn` | a computation with no state | `core::text`, `core::suggest`, `parseLine`, `parseProcess` |
+
+`Commands` exists because a `List` asks its rows to be `Copy`, and a `Command` cannot say so of itself while it
+is still being declared: the subcommands of a command are kept by a small sequence of their own.

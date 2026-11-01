@@ -54,7 +54,7 @@
 | **Reading** | `--port 80`, `--port=80`, `-p 80`, `-p80`, clusters (`-vqp 80`), repeated options, subcommands and their aliases, `--`, a lone `-`; the options of a parent work before *and* after the subcommand |
 | **Mistakes** | Every refusal is a `UsageError` — a `CliError` carrying the **status the process should leave with** — and one of six reasons: `UnknownCommand`, `UnknownOption`, `MissingValue`, `MissingArgument`, `UnexpectedArgument`, `InvalidValue`. When the word is a near miss of a real one it says so: ``did you mean `--port`?`` |
 | **Provenance** | Every answer remembers where it came from — the command line, the environment, a file, or the declared default — and a lower source never replaces a higher one: `parsed.source("port")` |
-| **Statuses** | `Exit::usage()` is 2, `config()` is 78, `interrupted()` is 130, and the rest of `sysexits.h` is named, so a program leaves with a number a shell script can read |
+| **Statuses** | `Exit` is an `enum`: `Exit::Usage` is 2, `Exit::Config` 78, `Exit::Interrupted` 130, and the rest of `sysexits.h` is named, so a program leaves with a number a shell script can read |
 | **Strings** | Read as bytes: an argument holding any language passes through unchanged, and codepoints are decoded only where a screen's width needs them |
 | **Verification** | The portable logic is translated to Python and run — 74 checks — beside a checker for layers and seams that plants 25 faults and fails if any is accepted; the real compiler builds and runs the example in CI |
 | **Known limits** | All of them, with what each would take to lift: [`LIMITATIONS.md`](LIMITATIONS.md) |
@@ -83,7 +83,7 @@ clinch = { path = "../clinch" }
 ```
 
 ```rs
-use clinch::{Arg, Args, Command, Opt, Parsed, UsageError};
+use clinch::{Arg, Command, Opt, Parsed, UsageError, parseProcess};
 
 fn spec() : Command {
     let serve : Command = Command::create("serve", "Pretend to serve a folder")
@@ -96,10 +96,10 @@ fn spec() : Command {
         .sub(serve);
 }
 
-// `main` is the only place errors stop: `Args::parse` says what it can raise.
+// `main` is the only place errors stop: `parseProcess` says what it can raise.
 fn main() : i32 {
     try {
-        let parsed : Parsed = Args::parse(spec());     // the process's own command line
+        let parsed : Parsed = parseProcess(spec());  // the process's own command line
         if (parsed.versionAsked) {
             println(parsed.versionLine());              // hello 0.1.0
             return 0;
@@ -152,12 +152,12 @@ Values are read with `text`, `integer`, `number` and `flag`; positionals with `a
 
 | Module | For | Status |
 |---|---|---|
-| `core::text` | UTF-8 cuts, searches, `Str::toInt`, `Str::toFloat`, `Str::copy` | written, compiled, **run** |
-| `core::error` | `CliError` → `UsageError` → six reasons, `ConfigError`, `Exit` statuses | written, compiled, **run** |
-| `core::spec` | `Command`, `Opt`, `Arg`, `Kind` — the declaration | written, compiled, **run** |
-| `core::suggest` | edit distance, `Suggest::nearest` | written, compiled, **run** |
-| `core::parse` | `Parser`, `Parsed`, `Source` | written, compiled, **run** |
-| `app::args` | `Args::parse(spec)`: the process's own command line, read for you — no `argc`/`argAt` loop | written, **run** over a fake `argv`; the compiler has not seen it yet |
+| `core::text` | free functions: UTF-8 cuts and widths, searches, `parseInt`, `parseFloat`, `copyOf` | written, compiled, **run** |
+| `core::error` | `CliError` → `UsageError` → six reasons, `ConfigError`, the `Exit` enum | written, compiled, **run** |
+| `core::spec` | `Command` (class), `Opt` and `Arg` (structs), `Kind` (enum) — the declaration | written, compiled, **run** |
+| `core::suggest` | free functions: `editDistance`, `nearestWord` | written, compiled, **run** |
+| `core::parse` | `Parsed` (class), `Source` (enum), free functions `parseLine` and `readLine` | written, compiled, **run** |
+| `app::args` | `parseProcess(spec)`: the process's own command line, read for you — no `argc`/`argAt` loop | written, compiled, **run** |
 | `core::help` | `--help` and `--version` generated from the declaration, wrapped to the terminal's width | next slice |
 | `core::config` | a TOML subset and JSON, `APP_*` environment variables, the four-level order, `--explain-config` | planned |
 | `core::output` | text, JSON and CSV from one description of the rows | planned |
@@ -185,7 +185,7 @@ Layers, bottom to top. **A module never reaches upward**, and the logic never se
 <div align="center"><img src="doc/img/layers.png" width="100%"></div>
 
 ```
-   app      Args · (App::run)                        the front door            Args written · run planned
+   app      parseProcess · (App::run)                the front door            parseProcess written · run planned
    term     (prompt · progress)                      what needs a terminal     planned — no src/term yet
    sys      (one seam per concern, one file per port) every extern "C"         planned — no src/sys yet
    core     spec · parse · suggest · error · text    the vocabulary and logic  written · no OS · tested
@@ -195,6 +195,16 @@ The point of the split is the tests: everything in `core` runs as Python over th
 terminal in sight; what needs one is behind a seam that a fake answers. A later full-screen UI library will share
 `core` — the declaration, the configuration, the errors — and **not** a renderer: clinch writes lines, a full-screen
 interface owns the screen. [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) has the layers and that boundary.
+
+### Which structure for what
+
+| Kind | Used for | Here |
+|---|---|---|
+| `enum` | a closed set of named cases | `Exit` (the statuses, `Exit::Usage as i32`), `Kind` (what a value must be), `Source` (where an answer came from) |
+| `struct` | plain data with a few questions to ask of it, copied wherever it goes | `Opt`, `Arg` |
+| `class` | something with an identity and a state that changes | `Command` (a tree built by chaining), `Parsed` (answers being collected), `Values`, `List` |
+| `exception` | a failure a caller acts on | `CliError` and its six reasons |
+| free `fn` | a computation with no state to keep | `text`, `suggest`, `parseLine`, `parseProcess`, `didYouMean` |
 
 ## 🔬 Honest status
 
@@ -220,7 +230,7 @@ What the translator **cannot** tell, and the compiler did: who owns a string. A 
 cannot be handed to a new owner, a constructor that keeps its argument keeps somebody else's memory, and a result
 read out of a sequence that is released afterwards dangles. The Python ran all of it without complaint; the
 compiler refused the first, and the executed example crashed on the others. Every string the library stores is now
-a copy (`Str::copy`), and the example that caught it stays in CI. [`LIMITATIONS.md`](LIMITATIONS.md) lists what is
+a copy (`copyOf`), and the example that caught it stays in CI. [`LIMITATIONS.md`](LIMITATIONS.md) lists what is
 still only checked.
 
 ## 🗂️ Where things are
@@ -228,7 +238,7 @@ still only checked.
 | | |
 |---|---|
 | `src/core/` | vocabulary and logic — no operating system in it |
-| `src/app/` | `Args`: the process's own command line. `src/sys/` and `src/term/` do **not exist yet** |
+| `src/app/` | `parseProcess`: the process's own command line. `src/sys/` and `src/term/` do **not exist yet** |
 | `examples/hello/` | the smallest program with a command line worth the name; built and run by CI |
 | `doc/` | [architecture](doc/ARCHITECTURE.md) · [roadmap](doc/ROADMAP.md) · `img/` |
 | `tools/` | the checker, the translator, the tests, the picture sources |

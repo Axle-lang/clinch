@@ -1,6 +1,6 @@
 // parse — a command line turned into answers.
 //
-//     let parsed : Parsed = Parser::parse(root, argv);
+//     let parsed : Parsed = parseLine(root, argv);
 //     let port : i64 = parsed.integer("port");
 //
 // The parser reads the words of `argv` against a `Command`: options in their long form (`--port 80`,
@@ -8,6 +8,8 @@
 // command the rest is read against, positional arguments, and `--`, after which every word is a
 // positional. It checks each value against the kind its option declares and refuses with a
 // `UsageError` that says what is wrong and, when it can tell, what was meant.
+//
+// `readLine` is the same without the defaults, so that the environment and a file can be offered first.
 //
 // What comes out remembers where each answer came from (`Source`), because an option can also be set
 // by the environment, by a config file, or by its declared default, and the person asking "why is this
@@ -20,8 +22,10 @@ use crate::core::error::{
 };
 use crate::core::list::{List, Values};
 use crate::core::spec::{Arg, Command, Kind, Opt};
-use crate::core::suggest::Suggest;
-use crate::core::text::{Str, Utf8};
+use crate::core::suggest::nearestWord;
+use crate::core::text::{
+    copyOf, indexOfByte, parseFloat, parseInt, startsWith, tailFrom, utf8Next, utf8Slice,
+};
 
 /** Where an answer came from, lowest to highest: a higher source replaces a lower one. */
 pub enum Source : i32 {
@@ -100,7 +104,7 @@ pub class Parsed {
     pub fn versionLine(self) : string {
         let root : Command = self.levels.at(0);
         if (root.ver == "") {
-            return Str::copy(root.name);
+            return copyOf(root.name);
         }
         return root.name + " " + root.ver;
     }
@@ -117,8 +121,8 @@ pub class Parsed {
 
     /** Record an answer, whatever came before it. */
     pub fn put(mut self, name : string, value : string, source : Source) : void {
-        self.names.add(Str::copy(name));
-        self.values.add(Str::copy(value));
+        self.names.add(copyOf(name));
+        self.values.add(copyOf(value));
         self.origins.add(source.rank());
     }
 
@@ -165,13 +169,13 @@ pub class Parsed {
 
     /** The whole number `name` holds; 0 when it has none (an option declared `integer` was checked). */
     pub fn integer(self, name : string) : i64 {
-        let (ok, n) = Str::toInt(self.text(name));
+        let (ok, n) = parseInt(self.text(name));
         return n;
     }
 
     /** The number `name` holds; 0 when it has none. */
     pub fn number(self, name : string) : f64 {
-        let (ok, x) = Str::toFloat(self.text(name));
+        let (ok, x) = parseFloat(self.text(name));
         return x;
     }
 
@@ -180,7 +184,7 @@ pub class Parsed {
         let out : Values<string> = new Values<string>();
         for (i of 0..self.names.size()) {
             if (self.names.at(i) == name) {
-                out.add(Str::copy(self.values.at(i)));
+                out.add(copyOf(self.values.at(i)));
             }
         }
         return out;
@@ -202,7 +206,7 @@ pub class Parsed {
 
     /** The positional argument called `name`; empty when it was not given. */
     pub fn arg(self, name : string) : string {
-        let args : List<Arg> = self.command().args;
+        let args : Values<Arg> = self.command().args;
         for (i of 0..args.size()) {
             if (args.at(i).name == name) {
                 return i < self.pos.size() ? self.pos.at(i) : "";
@@ -214,11 +218,11 @@ pub class Parsed {
     /** The positional arguments from the one called `name` on, for the argument that takes the rest. */
     pub fn rest(self, name : string) : Values<string> {
         let out : Values<string> = new Values<string>();
-        let args : List<Arg> = self.command().args;
+        let args : Values<Arg> = self.command().args;
         for (i of 0..args.size()) {
             if (args.at(i).name == name) {
                 for (k of i..self.pos.size()) {
-                    out.add(Str::copy(self.pos.at(k)));
+                    out.add(copyOf(self.pos.at(k)));
                 }
             }
         }
@@ -237,7 +241,7 @@ pub class Parsed {
 
     /** Record a positional argument. */
     pub fn push(mut self, value : string) : void {
-        self.pos.add(Str::copy(value));
+        self.pos.add(copyOf(value));
     }
 
     /** Add what the options declare as defaults, for those nothing else set. */
@@ -254,205 +258,202 @@ pub class Parsed {
     }
 }
 
-/** Reads a command line against a command. */
-pub class Parser {
-    /** The option called `name` at the deepest level that declares it, or nothing (`found == false`). */
-    static fn find(out : Parsed, name : string, letter : string) : (found: bool, opt: Opt) {
-        let mut l : i32 = out.levels.size() - 1;
-        while (l >= 0) {
-            let c : Command = out.levels.at(l);
-            let at : i32 = name == "" ? c.findShort(letter) : c.findLong(name);
-            if (at >= 0) {
-                return (true, c.opts.at(at));
-            }
-            l = l - 1;
+/** The option called `name` at the deepest level that declares it, or nothing (`found == false`). */
+fn findOption(out : Parsed, name : string, letter : string) : (found: bool, opt: Opt) {
+    let mut l : i32 = out.levels.size() - 1;
+    while (l >= 0) {
+        let c : Command = out.levels.at(l);
+        let at : i32 = name == "" ? c.findShort(letter) : c.findLong(name);
+        if (at >= 0) {
+            return (true, c.opts.at(at));
         }
-        return (false, Opt::flag("", ""));
+        l = l - 1;
     }
+    return (false, Opt::flag("", ""));
+}
 
-    /** Every long option the line may use, for suggestions. */
-    static fn longNames(out : Parsed) : Values<string> {
-        let names : Values<string> = new Values<string>();
-        for (l of 0..out.levels.size()) {
-            let c : Command = out.levels.at(l);
-            for (i of 0..c.opts.size()) {
-                if (c.opts.at(i).name != "" && !c.opts.at(i).hidden) {
-                    names.add("--" + c.opts.at(i).name);
-                }
+/** Every long option the line may use, for suggestions. */
+fn longNames(out : Parsed) : Values<string> {
+    let names : Values<string> = new Values<string>();
+    for (l of 0..out.levels.size()) {
+        let c : Command = out.levels.at(l);
+        for (i of 0..c.opts.size()) {
+            if (c.opts.at(i).name != "" && !c.opts.at(i).hidden) {
+                names.add("--" + c.opts.at(i).name);
             }
         }
-        names.add("--help");
-        if (out.levels.at(0).ver != "") {
-            names.add("--version");
-        }
-        return names;
     }
+    names.add("--help");
+    if (out.levels.at(0).ver != "") {
+        names.add("--version");
+    }
+    return names;
+}
 
-    /** One `--name` or `--name=value`; the index of the next word to read. */
-    static fn longOption(out : Parsed, word : string, argv : Values<string>, next : i32) : i32 ! UsageError {
-        let eq : i64 = Str::indexOf(word, 61, 0, word.byteLength);
-        let name : string = eq < 0 ? Str::tail(word, 2) : Utf8::slice(word, 2, eq);
-        let typed : string = "--" + name;
-        let (found, opt) = Parser::find(out, name, "");
+/** One `--name` or `--name=value`; the index of the next word to read. */
+fn longOption(out : Parsed, word : string, argv : Values<string>, next : i32) : i32 ! UsageError {
+    let eq : i64 = indexOfByte(word, 61, 0, word.byteLength);
+    let name : string = eq < 0 ? tailFrom(word, 2) : utf8Slice(word, 2, eq);
+    let typed : string = "--" + name;
+    let (found, opt) = findOption(out, name, "");
+    if (!found) {
+        if (name == "help") {
+            out.askHelp();
+            return next;
+        }
+        if (name == "version" && out.levels.at(0).ver != "") {
+            out.askVersion();
+            return next;
+        }
+        throw UnknownOption(typed, nearestWord(typed, longNames(out)));
+    }
+    if (!opt.takesValue()) {
+        if (eq < 0) {
+            out.put(opt.name, "true", Source::Argv);
+        } else {
+            let given : string = tailFrom(word, eq + 1);
+            if (given != "true" && given != "false") {
+                throw InvalidValue(typed, given, "true or false", "");
+            }
+            out.put(opt.name, given, Source::Argv);
+        }
+        return next;
+    }
+    if (eq >= 0) {
+        storeValue(out, opt, typed, tailFrom(word, eq + 1));
+        return next;
+    }
+    if (next >= argv.size() || looksLikeOption(argv.at(next))) {
+        throw MissingValue(typed, opt.value);
+    }
+    storeValue(out, opt, typed, argv.at(next));
+    return next + 1;
+}
+
+/** Whether a word reads as the next option rather than as a value: `--x`, not `-1` or `-`. */
+fn looksLikeOption(word : string) : bool {
+    return startsWith(word, "--") && word.byteLength > 2;
+}
+
+/** `-a`, `-abc`, `-j4`, `-j 4`: letters read left to right until one takes a value. */
+fn shortOptions(
+    out : Parsed,
+    word : string,
+    argv : Values<string>,
+    next : i32
+) : i32 ! UsageError {
+    let mut at : i64 = 1;
+    let mut following : i32 = next;
+    while (at < word.byteLength) {
+        let (cp, used) = utf8Next(word, at);
+        let letter : string = utf8Slice(word, at, at + (used as i64));
+        at = at + (used as i64);
+        let typed : string = "-" + letter;
+        let (found, opt) = findOption(out, "", letter);
         if (!found) {
-            if (name == "help") {
+            if (letter == "h") {
                 out.askHelp();
-                return next;
-            }
-            if (name == "version" && out.levels.at(0).ver != "") {
-                out.askVersion();
-                return next;
-            }
-            throw UnknownOption(typed, Suggest::nearest(typed, Parser::longNames(out)));
-        }
-        if (!opt.takesValue()) {
-            if (eq < 0) {
-                out.put(opt.name, "true", Source::Argv);
-            } else {
-                let given : string = Str::tail(word, eq + 1);
-                if (given != "true" && given != "false") {
-                    throw InvalidValue(typed, given, "true or false", "");
-                }
-                out.put(opt.name, given, Source::Argv);
-            }
-            return next;
-        }
-        if (eq >= 0) {
-            Parser::store(out, opt, typed, Str::tail(word, eq + 1));
-            return next;
-        }
-        if (next >= argv.size() || Parser::looksLikeOption(argv.at(next))) {
-            throw MissingValue(typed, opt.value);
-        }
-        Parser::store(out, opt, typed, argv.at(next));
-        return next + 1;
-    }
-
-    /** Whether a word reads as the next option rather than as a value: `--x`, not `-1` or `-`. */
-    static fn looksLikeOption(word : string) : bool {
-        return Str::starts(word, "--") && word.byteLength > 2;
-    }
-
-    /** `-a`, `-abc`, `-j4`, `-j 4`: letters read left to right until one takes a value. */
-    static fn shortOptions(
-        out : Parsed,
-        word : string,
-        argv : Values<string>,
-        next : i32
-    ) : i32 ! UsageError {
-        let mut at : i64 = 1;
-        let mut following : i32 = next;
-        while (at < word.byteLength) {
-            let (cp, used) = Utf8::next(word, at);
-            let letter : string = Utf8::slice(word, at, at + (used as i64));
-            at = at + (used as i64);
-            let typed : string = "-" + letter;
-            let (found, opt) = Parser::find(out, "", letter);
-            if (!found) {
-                if (letter == "h") {
-                    out.askHelp();
-                    return following;
-                }
-                if (letter == "V" && out.levels.at(0).ver != "") {
-                    out.askVersion();
-                    return following;
-                }
-                throw UnknownOption(typed, "");
-            }
-            if (!opt.takesValue()) {
-                out.put(opt.name, "true", Source::Argv);
-                continue;
-            }
-            if (at < word.byteLength) {
-                Parser::store(out, opt, typed, Str::tail(word, at));
                 return following;
             }
-            if (following >= argv.size() || Parser::looksLikeOption(argv.at(following))) {
-                throw MissingValue(typed, opt.value);
+            if (letter == "V" && out.levels.at(0).ver != "") {
+                out.askVersion();
+                return following;
             }
-            Parser::store(out, opt, typed, argv.at(following));
-            return following + 1;
+            throw UnknownOption(typed, "");
         }
-        return following;
+        if (!opt.takesValue()) {
+            out.put(opt.name, "true", Source::Argv);
+            continue;
+        }
+        if (at < word.byteLength) {
+            storeValue(out, opt, typed, tailFrom(word, at));
+            return following;
+        }
+        if (following >= argv.size() || looksLikeOption(argv.at(following))) {
+            throw MissingValue(typed, opt.value);
+        }
+        storeValue(out, opt, typed, argv.at(following));
+        return following + 1;
     }
+    return following;
+}
 
-    /** Check `value` against what `opt` declares and record it. */
-    static fn store(out : Parsed, opt : Opt, typed : string, value : string) : void ! UsageError {
-        if (!opt.accepts(value)) {
-            let near : string = opt.kind == Kind::Choice ? Suggest::nearest(value, opt.words()) : "";
-            throw InvalidValue(typed, value, opt.expects(), near);
-        }
-        out.put(opt.name, value, Source::Argv);
+/** Check `value` against what `opt` declares and record it. */
+fn storeValue(out : Parsed, opt : Opt, typed : string, value : string) : void ! UsageError {
+    if (!opt.accepts(value)) {
+        let near : string = opt.kind == Kind::Choice ? nearestWord(value, opt.words()) : "";
+        throw InvalidValue(typed, value, opt.expects(), near);
     }
+    out.put(opt.name, value, Source::Argv);
+}
 
-    /** Check the positional arguments against the command that runs. */
-    static fn check(out : Parsed) : void ! UsageError {
-        let c : Command = out.command();
-        let mut needed : i32 = 0;
-        let mut variadic : bool = false;
-        for (i of 0..c.args.size()) {
-            if (c.args.at(i).needed) {
-                needed = i + 1;
-            }
-            if (c.args.at(i).variadic) {
-                variadic = true;
-            }
+/** Check the positional arguments against the command that runs. */
+fn checkArguments(out : Parsed) : void ! UsageError {
+    let c : Command = out.command();
+    let mut needed : i32 = 0;
+    let mut variadic : bool = false;
+    for (i of 0..c.args.size()) {
+        if (c.args.at(i).needed) {
+            needed = i + 1;
         }
-        if (c.subs.size() > 0 && out.count() == 0 && c.args.size() == 0) {
-            throw UsageError("a command is needed", "run with --help to list them");
-        }
-        if (out.count() < needed) {
-            throw MissingArgument(c.args.at(out.count()).name);
-        }
-        if (!variadic && out.count() > c.args.size()) {
-            throw UnexpectedArgument(out.at(c.args.size()));
+        if (c.args.at(i).variadic) {
+            variadic = true;
         }
     }
+    if (c.subs.size() > 0 && out.count() == 0 && c.args.size() == 0) {
+        throw UsageError("a command is needed", "run with --help to list them");
+    }
+    if (out.count() < needed) {
+        throw MissingArgument(c.args.at(out.count()).name);
+    }
+    if (!variadic && out.count() > c.args.size()) {
+        throw UnexpectedArgument(out.at(c.args.size()));
+    }
+}
 
-    /**
-     * Read `argv` against `root` without the defaults, so a caller can offer the environment and a file
-     * first and then `seal()`.
-     */
-    pub static fn read(root : Command, argv : Values<string>) : Parsed ! UsageError {
-        let out : Parsed = new Parsed();
-        out.levels.add(root.copy());
-        let mut i : i32 = 0;
-        let mut literal : bool = false;
-        while (i < argv.size()) {
-            let word : string = argv.at(i);
-            i = i + 1;
-            if (literal || !Str::starts(word, "-") || word == "-") {
-                if (!literal && out.count() == 0 && out.command().subs.size() > 0) {
-                    let at : i32 = out.command().findSub(word);
-                    if (at >= 0) {
-                        out.levels.add(out.command().subs.at(at).copy());
-                        continue;
-                    }
-                    if (out.command().args.size() == 0) {
-                        let near : string = Suggest::nearest(word, out.command().subNames());
-                        throw UnknownCommand(word, near);
-                    }
+/**
+ * Read `argv` against `root` without the defaults, so a caller can offer the environment and a file
+ * first and then `seal()`.
+ */
+pub fn readLine(root : Command, argv : Values<string>) : Parsed ! UsageError {
+    let out : Parsed = new Parsed();
+    out.levels.add(root.copy());
+    let mut i : i32 = 0;
+    let mut literal : bool = false;
+    while (i < argv.size()) {
+        let word : string = argv.at(i);
+        i = i + 1;
+        if (literal || !startsWith(word, "-") || word == "-") {
+            if (!literal && out.count() == 0 && out.command().subs.size() > 0) {
+                let at : i32 = out.command().findSub(word);
+                if (at >= 0) {
+                    out.levels.add(out.command().subs.at(at).copy());
+                    continue;
                 }
-                out.push(word);
-            } else if (word == "--") {
-                literal = true;
-            } else if (Str::starts(word, "--")) {
-                i = Parser::longOption(out, word, argv, i);
-            } else {
-                i = Parser::shortOptions(out, word, argv, i);
+                if (out.command().args.size() == 0) {
+                    let near : string = nearestWord(word, out.command().subNames());
+                    throw UnknownCommand(word, near);
+                }
             }
-            if (out.helpAsked || out.versionAsked) {
-                return out;
-            }
+            out.push(word);
+        } else if (word == "--") {
+            literal = true;
+        } else if (startsWith(word, "--")) {
+            i = longOption(out, word, argv, i);
+        } else {
+            i = shortOptions(out, word, argv, i);
         }
-        Parser::check(out);
-        return out;
+        if (out.helpAsked || out.versionAsked) {
+            return out;
+        }
     }
+    checkArguments(out);
+    return out;
+}
 
-    /** Read `argv` (the arguments after the program's name) against `root`, defaults included. */
-    pub static fn parse(root : Command, argv : Values<string>) : Parsed ! UsageError {
-        let out : Parsed = Parser::read(root, argv);
-        out.seal();
-        return out;
-    }
+/** Read `argv` (the arguments after the program's name) against `root`, defaults included. */
+pub fn parseLine(root : Command, argv : Values<string>) : Parsed ! UsageError {
+    let out : Parsed = readLine(root, argv);
+    out.seal();
+    return out;
 }

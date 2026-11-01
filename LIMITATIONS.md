@@ -15,7 +15,7 @@ This file says what the code claims and how far that has been checked.
 - **Case.** Suggestions ignore the case of ASCII letters only.
 - **A repeated option that is not declared `many`** keeps every value but `text`/`integer` read the last.
 - **Strings are copied wherever they are stored.** A string read out of an object cannot be handed to a new
-  owner, and a constructor that keeps its parameter keeps somebody else's memory. `Str::copy` is the answer; it
+  owner, and a constructor that keeps its parameter keeps somebody else's memory. `copyOf` is the answer; it
   costs an allocation per stored string, which a command line can afford.
 - **Not there yet:** `--help` text, configuration files, environment variables, completion scripts, JSON and
   CSV output, prompts, progress and signal handling. See `doc/ROADMAP.md`.

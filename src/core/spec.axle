@@ -11,11 +11,11 @@
 //         .arg(Arg::required("root", "Folder to serve"));
 //
 // An option is declared by the way it is typed: `-p, --port <n>` is a short name, a long name and a
-// value. The long name is what the program reads it by (`parsed.int("port")`), the config file
+// value. The long name is what the program reads it by (`parsed.integer("port")`), the config file
 // and the environment too.
 
-use crate::core::list::{Copy, List, Values};
-use crate::core::text::{Str, Utf8};
+use crate::core::list::{Copy, Values};
+use crate::core::text::{copyOf, parseFloat, parseInt, startsWith, tailFrom, utf8Slice};
 use std::text::StringBuilder;
 
 /** What an option's value must be. */
@@ -63,8 +63,23 @@ pub enum Kind : i32 {
     }
 }
 
-/** An option: `--name`, with or without a value. */
-pub class Opt : Copy<Opt> {
+/** Whether `v` reads as a whole number. */
+fn isWhole(v : string) : bool {
+    let (ok, n) = parseInt(v);
+    return ok;
+}
+
+/** Whether `v` reads as a number. */
+fn isNumber(v : string) : bool {
+    let (ok, x) = parseFloat(v);
+    return ok;
+}
+
+/**
+ * An option: `--name`, with or without a value. It is plain data with a few questions to ask of it, and two
+ * options are never the same object — so a `struct`, copied wherever it goes.
+ */
+pub struct Opt {
     /** The long name it is read by, without dashes. */
     pub name       : string;
 
@@ -87,24 +102,29 @@ pub class Opt : Copy<Opt> {
     pub choices    : string;
 
     /** Whether it may be given several times; the values are then all kept. */
-    pub repeatable : bool = false;
+    pub repeatable : bool;
 
     /** Whether `--help` leaves it out (it still works). */
-    pub hidden     : bool = false;
+    pub hidden     : bool;
 
     /** An option as declared by `spec`, e.g. `-j, --jobs <n>`. */
-    constructor(spec : string, help : string, kind : Kind, fallback : string, choices : string) {
+    static fn declared(spec : string, help : string, kind : Kind, fallback : string, choices : string) : Opt {
         let (name, letter, value) = Opt::readSpec(spec);
-        self.name = Str::copy(name);
-        self.letter = Str::copy(letter);
-        self.value = Str::copy(value);
-        self.kind = kind;
-        self.help = Str::copy(help);
-        self.fallback = Str::copy(fallback);
-        self.choices = Str::copy(choices);
+        let mut shown : string = copyOf(value);
         if (kind != Kind::Flag && value == "") {
-            self.value = kind.word();
+            shown = copyOf(kind.word());
         }
+        return Opt {
+            name: copyOf(name),
+            letter: copyOf(letter),
+            value: shown,
+            kind: kind,
+            help: copyOf(help),
+            fallback: copyOf(fallback),
+            choices: copyOf(choices),
+            repeatable: false,
+            hidden: false,
+        };
     }
 
     /** Cut the declaration into its three parts: long name, letter, value name. */
@@ -118,13 +138,13 @@ pub class Opt : Copy<Opt> {
             while (end < spec.byteLength && spec.byteAt(end) != 32 && spec.byteAt(end) != 44) {
                 end = end + 1;
             }
-            let word : string = Utf8::slice(spec, at, end);
-            if (Str::starts(word, "--")) {
-                name = Str::tail(word, 2);
-            } else if (Str::starts(word, "-")) {
-                letter = Str::tail(word, 1);
-            } else if (Str::starts(word, "<")) {
-                value = Utf8::slice(word, 1, word.byteLength - 1);
+            let word : string = utf8Slice(spec, at, end);
+            if (startsWith(word, "--")) {
+                name = tailFrom(word, 2);
+            } else if (startsWith(word, "-")) {
+                letter = tailFrom(word, 1);
+            } else if (startsWith(word, "<")) {
+                value = utf8Slice(word, 1, word.byteLength - 1);
             }
             at = end + 1;
         }
@@ -133,37 +153,37 @@ pub class Opt : Copy<Opt> {
 
     /** A flag: `-v, --verbose`. */
     pub static fn flag(spec : string, help : string) : Opt {
-        return new Opt(spec, help, Kind::Flag, "", "");
+        return Opt::declared(spec, help, Kind::Flag, "", "");
     }
 
     /** An option holding text; `fallback` is what it is when unset ("" for no default). */
     pub static fn text(spec : string, help : string, fallback : string) : Opt {
-        return new Opt(spec, help, Kind::Text, fallback, "");
+        return Opt::declared(spec, help, Kind::Text, fallback, "");
     }
 
     /** An option holding a whole number. */
     pub static fn integer(spec : string, help : string, fallback : string) : Opt {
-        return new Opt(spec, help, Kind::Int, fallback, "");
+        return Opt::declared(spec, help, Kind::Int, fallback, "");
     }
 
     /** An option holding a number with a fraction. */
     pub static fn number(spec : string, help : string, fallback : string) : Opt {
-        return new Opt(spec, help, Kind::Float, fallback, "");
+        return Opt::declared(spec, help, Kind::Float, fallback, "");
     }
 
     /** An option holding a path. */
     pub static fn path(spec : string, help : string, fallback : string) : Opt {
-        return new Opt(spec, help, Kind::Path, fallback, "");
+        return Opt::declared(spec, help, Kind::Path, fallback, "");
     }
 
     /** An option holding one of the words in `choices`, joined by `|`: `"text|json|csv"`. */
     pub static fn choice(spec : string, help : string, choices : string, fallback : string) : Opt {
-        return new Opt(spec, help, Kind::Choice, fallback, choices);
+        return Opt::declared(spec, help, Kind::Choice, fallback, choices);
     }
 
     /** An option that may be given again and again: `-I dir -I dir`. */
     pub static fn many(spec : string, help : string) : Opt {
-        let mut o : Opt = new Opt(spec, help, Kind::Text, "", "");
+        let mut o : Opt = Opt::declared(spec, help, Kind::Text, "", "");
         o.repeatable = true;
         return o;
     }
@@ -202,7 +222,7 @@ pub class Opt : Copy<Opt> {
             while (end < self.choices.byteLength && self.choices.byteAt(end) != 124) {
                 end = end + 1;
             }
-            out.add(Utf8::slice(self.choices, at, end));
+            out.add(utf8Slice(self.choices, at, end));
             at = end + 1;
         }
         return out;
@@ -231,20 +251,10 @@ pub class Opt : Copy<Opt> {
             Kind::Flag => false,
             Kind::Text => true,
             Kind::Path => true,
-            Kind::Int => Opt::isInt(v),
-            Kind::Float => Opt::isFloat(v),
+            Kind::Int => isWhole(v),
+            Kind::Float => isNumber(v),
             Kind::Choice => self.hasWord(v),
         };
-    }
-
-    static fn isInt(v : string) : bool {
-        let (ok, n) = Str::toInt(v);
-        return ok;
-    }
-
-    static fn isFloat(v : string) : bool {
-        let (ok, x) = Str::toFloat(v);
-        return ok;
     }
 
     /** Whether `v` is one of the choices. */
@@ -257,21 +267,10 @@ pub class Opt : Copy<Opt> {
         }
         return false;
     }
-
-    /** A separate object with the same declaration. */
-    pub fn copy(self) : Opt {
-        let mut o : Opt = new Opt("", self.help, self.kind, self.fallback, self.choices);
-        o.name = Str::copy(self.name);
-        o.letter = Str::copy(self.letter);
-        o.value = Str::copy(self.value);
-        o.repeatable = self.repeatable;
-        o.hidden = self.hidden;
-        return o;
-    }
 }
 
-/** A positional argument. */
-pub class Arg : Copy<Arg> {
+/** A positional argument: plain data, so a `struct`. */
+pub struct Arg {
     /** Its name in the usage line. */
     pub name     : string;
 
@@ -284,26 +283,19 @@ pub class Arg : Copy<Arg> {
     /** Whether it takes all that remain (`<file>...`); only the last may. */
     pub variadic : bool;
 
-    constructor(name : string, help : string, needed : bool, variadic : bool) {
-        self.name = Str::copy(name);
-        self.help = Str::copy(help);
-        self.needed = needed;
-        self.variadic = variadic;
-    }
-
     /** One that must be given. */
     pub static fn required(name : string, help : string) : Arg {
-        return new Arg(name, help, true, false);
+        return Arg { name: copyOf(name), help: copyOf(help), needed: true, variadic: false };
     }
 
     /** One that may be left out. */
     pub static fn optional(name : string, help : string) : Arg {
-        return new Arg(name, help, false, false);
+        return Arg { name: copyOf(name), help: copyOf(help), needed: false, variadic: false };
     }
 
     /** Zero or more, the last of the line. */
     pub static fn rest(name : string, help : string) : Arg {
-        return new Arg(name, help, false, true);
+        return Arg { name: copyOf(name), help: copyOf(help), needed: false, variadic: true };
     }
 
     /** How the usage line writes it: `<root>`, `[root]`, `[files...]`. */
@@ -312,11 +304,6 @@ pub class Arg : Copy<Arg> {
             return "[" + self.name + "...]";
         }
         return self.needed ? "<" + self.name + ">" : "[" + self.name + "]";
-    }
-
-    /** A separate object with the same declaration. */
-    pub fn copy(self) : Arg {
-        return new Arg(self.name, self.help, self.needed, self.variadic);
     }
 }
 
@@ -375,10 +362,10 @@ pub class Command : Copy<Command> {
     pub aliases  : Values<string>;
 
     /** Its options. */
-    pub opts     : List<Opt>;
+    pub opts     : Values<Opt>;
 
     /** Its positional arguments, in order. */
-    pub args     : List<Arg>;
+    pub args     : Values<Arg>;
 
     /** Its subcommands. */
     pub subs     : Commands;
@@ -391,11 +378,11 @@ pub class Command : Copy<Command> {
     pub hidden   : bool = false;
 
     constructor(name : string, about : string) {
-        self.name = Str::copy(name);
-        self.about = Str::copy(about);
+        self.name = copyOf(name);
+        self.about = copyOf(about);
         self.aliases = new Values<string>();
-        self.opts = new List<Opt>();
-        self.args = new List<Arg>();
+        self.opts = new Values<Opt>();
+        self.args = new Values<Arg>();
         self.subs = new Commands();
         self.lines = new Values<string>();
         self.notes = new Values<string>();
@@ -426,7 +413,7 @@ pub class Command : Copy<Command> {
 
     /** Let it answer to another name too. */
     pub fn alias(mut self, name : string) : Command {
-        self.aliases.add(Str::copy(name));
+        self.aliases.add(copyOf(name));
         return self;
     }
 
@@ -438,8 +425,8 @@ pub class Command : Copy<Command> {
 
     /** Add an example: the line as typed, and what it does. */
     pub fn example(mut self, line : string, note : string) : Command {
-        self.lines.add(Str::copy(line));
-        self.notes.add(Str::copy(note));
+        self.lines.add(copyOf(line));
+        self.notes.add(copyOf(note));
         return self;
     }
 
@@ -488,10 +475,10 @@ pub class Command : Copy<Command> {
     pub fn subNames(self) : Values<string> {
         let out : Values<string> = new Values<string>();
         for (i of 0..self.subs.size()) {
-            out.add(Str::copy(self.subs.at(i).name));
+            out.add(copyOf(self.subs.at(i).name));
             let c : Command = self.subs.at(i);
             for (k of 0..c.aliases.size()) {
-                out.add(Str::copy(c.aliases.at(k)));
+                out.add(copyOf(c.aliases.at(k)));
             }
         }
         return out;
@@ -500,23 +487,23 @@ pub class Command : Copy<Command> {
     /** A separate object with the same declaration, subcommands included. */
     pub fn copy(self) : Command {
         let mut c : Command = new Command(self.name, self.about);
-        c.ver = Str::copy(self.ver);
+        c.ver = copyOf(self.ver);
         c.hidden = self.hidden;
         for (i of 0..self.aliases.size()) {
-            c.aliases.add(Str::copy(self.aliases.at(i)));
+            c.aliases.add(copyOf(self.aliases.at(i)));
         }
         for (i of 0..self.opts.size()) {
-            c.opts.add(self.opts.at(i).copy());
+            c.opts.add(self.opts.at(i));
         }
         for (i of 0..self.args.size()) {
-            c.args.add(self.args.at(i).copy());
+            c.args.add(self.args.at(i));
         }
         for (i of 0..self.subs.size()) {
             c.subs.add(self.subs.at(i).copy());
         }
         for (i of 0..self.lines.size()) {
-            c.lines.add(Str::copy(self.lines.at(i)));
-            c.notes.add(Str::copy(self.notes.at(i)));
+            c.lines.add(copyOf(self.lines.at(i)));
+            c.notes.add(copyOf(self.notes.at(i)));
         }
         return c;
     }

@@ -25,7 +25,7 @@
 <h2>The logic never sees a <em>terminal</em>. The terminal will be touched in <em>one</em> place.</h2>
 <div class="stack">
   <div class="layer app"><div><div class="name">app</div><div class="note">the front door</div></div>
-    <div class="mods"><div class="m">Args<small>the process's own command line</small></div><div class="m todo">App::run<small>parse · resolve · run · report</small></div></div></div>
+    <div class="mods"><div class="m">parseProcess<small>the process's own command line</small></div><div class="m todo">App::run<small>parse · resolve · run · report</small></div></div></div>
   <div class="layer term"><div><div class="name">term</div><div class="note">what needs a terminal</div></div>
     <div class="mods"><div class="m todo">prompt<small>confirm · choose · input</small></div><div class="m todo">progress<small>bar · spinner · cancel</small></div></div></div>
   <div class="layer sys"><div><div class="name">sys</div><div class="note">seams · every <span class="mono">extern "C"</span></div></div>
@@ -38,10 +38,10 @@
   <div class="layer core"><div><div class="name">core</div><div class="note">vocabulary and logic · no OS · tested</div></div>
     <div class="mods">
       <div class="m">spec<small>Command · Opt · Arg</small></div>
-      <div class="m">parse<small>Parser · Parsed · Source</small></div>
+      <div class="m">parse<small>Parsed · parseLine · Source</small></div>
       <div class="m">suggest<small>did you mean…?</small></div>
-      <div class="m">error<small>UsageError · Exit</small></div>
-      <div class="m">text<small>Utf8 · Str</small></div>
+      <div class="m">error<small>UsageError · Exit enum</small></div>
+      <div class="m">text<small>UTF-8 · numbers</small></div>
       <div class="m todo">help</div><div class="m todo">config</div><div class="m todo">output</div><div class="m todo">complete</div>
     </div></div>
 </div>

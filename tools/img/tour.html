@@ -20,7 +20,7 @@
 <div class="line">                      <span class="s">"text|json|csv"</span>, <span class="s">"text"</span>))</div>
 <div class="line">    .<span class="f">arg</span>(<span class="f">Arg::required</span>(<span class="s">"root"</span>, <span class="s">"Folder to serve"</span>));</div>
 <div class="gap"></div>
-<div class="line"><span class="k">let</span> p : Parsed = <span class="f">Parser::parse</span>(root, words);</div>
+<div class="line"><span class="k">let</span> p : Parsed = <span class="f">parseLine</span>(root, words);</div>
 <div class="line"><span class="k">let</span> port : i64 = p.<span class="f">integer</span>(<span class="s">"port"</span>);</div>
 <div class="line"><span class="k">let</span> origin : Source = p.<span class="f">source</span>(<span class="s">"port"</span>);</div>
 <div class="gap"></div>

@@ -39,24 +39,24 @@ def strs(v):
 
 
 # --- text ------------------------------------------------------------------------------------
-check("Str::toInt reads signed decimals", g.Str.toInt("-42") == (True, -42) and g.Str.toInt("+7") == (True, 7))
-check("Str::toInt refuses words and empties", not g.Str.toInt("4x")[0] and not g.Str.toInt("")[0] and not g.Str.toInt("-")[0])
-check("Str::toFloat reads fractions", g.Str.toFloat("3.25") == (True, 3.25) and g.Str.toFloat("-0.5")[1] == -0.5)
-check("Str::toFloat refuses lone dots", not g.Str.toFloat(".")[0] and not g.Str.toFloat("1.x")[0] and g.Str.toFloat("2")[0])
-check("Str::pad counts codepoints", g.Str.pad("é", 3) == "é  " and g.Str.pad("abcd", 2) == "abcd")
-check("Str::repeat", g.Str.repeat("ab", 3) == "ababab" and g.Str.repeat("x", 0) == "")
+check("Str::toInt reads signed decimals", g.parseInt("-42") == (True, -42) and g.parseInt("+7") == (True, 7))
+check("Str::toInt refuses words and empties", not g.parseInt("4x")[0] and not g.parseInt("")[0] and not g.parseInt("-")[0])
+check("Str::toFloat reads fractions", g.parseFloat("3.25") == (True, 3.25) and g.parseFloat("-0.5")[1] == -0.5)
+check("Str::toFloat refuses lone dots", not g.parseFloat(".")[0] and not g.parseFloat("1.x")[0] and g.parseFloat("2")[0])
+check("Str::pad counts codepoints", g.padRight("é", 3) == "é  " and g.padRight("abcd", 2) == "abcd")
+check("Str::repeat", g.repeatText("ab", 3) == "ababab" and g.repeatText("x", 0) == "")
 
 # --- suggestions -----------------------------------------------------------------------------
-check("distance is 0 for equal words", g.Suggest.distance("abc", "abc") == 0)
-check("distance counts a substitution", g.Suggest.distance("kitten", "sitten") == 1)
-check("distance counts a swap of neighbours as one", g.Suggest.distance("serve", "sevre") == 1)
-check("distance against empty is the length", g.Suggest.distance("", "abc") == 3 and g.Suggest.distance("ab", "") == 2)
-check("distance of kitten and sitting is 3", g.Suggest.distance("kitten", "sitting") == 3)
+check("distance is 0 for equal words", g.editDistance("abc", "abc") == 0)
+check("distance counts a substitution", g.editDistance("kitten", "sitten") == 1)
+check("distance counts a swap of neighbours as one", g.editDistance("serve", "sevre") == 1)
+check("distance against empty is the length", g.editDistance("", "abc") == 3 and g.editDistance("ab", "") == 2)
+check("distance of kitten and sitting is 3", g.editDistance("kitten", "sitting") == 3)
 cands = words("--verbose", "--version", "--output")
-check("nearest finds the near miss", g.Suggest.nearest("--verbos", cands) == "--verbose")
-check("nearest says nothing for a far word", g.Suggest.nearest("--zzzzzz", cands) == "")
-check("nearest ignores case", g.Suggest.nearest("--OUTPUT", cands) == "--output")
-check("a short word may be one edit away", g.Suggest.nearest("lst", words("list", "add")) == "list")
+check("nearest finds the near miss", g.nearestWord("--verbos", cands) == "--verbose")
+check("nearest says nothing for a far word", g.nearestWord("--zzzzzz", cands) == "")
+check("nearest ignores case", g.nearestWord("--OUTPUT", cands) == "--output")
+check("a short word may be one edit away", g.nearestWord("lst", words("list", "add")) == "list")
 
 # --- the spec --------------------------------------------------------------------------------
 o = g.Opt.integer("-j, --jobs <n>", "Parallel jobs", "4")
@@ -90,7 +90,7 @@ def app():
 
 
 def run(*argv):
-    return g.Parser.parse(app(), words(*argv))
+    return g.parseLine(app(), words(*argv))
 
 
 c = g.Command.create("a", "x")
@@ -158,31 +158,31 @@ check("a bare call of a command group asks for a command", isinstance(e, g.Usage
 
 # --- the process's own command line ----------------------------------------------------------
 rt.ARGV[:] = ["tool", "serve", "--port", "9000", "site"]
-check("the process's words skip the program's name", strs(g.Args.words()) == ["serve", "--port", "9000", "site"], strs(g.Args.words()))
-p = g.Args.parse(app())
+check("the process's words skip the program's name", strs(g.processWords()) == ["serve", "--port", "9000", "site"], strs(g.processWords()))
+p = g.parseProcess(app())
 check("Args::parse reads the process's own line", p.path() == "tool serve" and p.integer("port") == 9000 and p.arg("root") == "site")
 rt.ARGV[:] = ["tool", "serve", "--prot", "1", "s"]
-e = thrown(lambda: g.Args.parse(app()))
+e = thrown(lambda: g.parseProcess(app()))
 check("a mistake on the process's line is reported", isinstance(e, g.UsageError) and e.report() == "error: unknown option `--prot`\n  did you mean `--port`?", e)
 rt.ARGV[:] = ["tool"]
-check("no words is no words", g.Args.words().size() == 0)
+check("no words is no words", g.processWords().size() == 0)
 rt.ARGV[:] = ["tool", "--version"]
-check("the version line names the program", g.Args.parse(app()).versionLine() == "tool 1.2.0")
+check("the version line names the program", g.parseProcess(app()).versionLine() == "tool 1.2.0")
 check("a report without a hint is one line", g.UsageError("boom", "").report() == "error: boom")
 
 # --- exit codes ------------------------------------------------------------------------------
-check("exit statuses follow sysexits", (g.Exit.ok(), g.Exit.usage(), g.Exit.config(), g.Exit.interrupted()) == (0, 2, 78, 130))
+check("exit statuses follow sysexits", (g.Exit.Ok.code(), g.Exit.Usage.code(), g.Exit.Config.code(), g.Exit.Interrupted.code()) == (0, 2, 78, 130))
 c = g.ConfigError("app.toml", "line 3: expected `=`")
 check("a config error names its source and exits 78", "app.toml" in c.message and c.code == 78 and isinstance(c, g.CliError))
 
 # --- precedence ------------------------------------------------------------------------------
-p = g.Parser.read(app(), words("serve", "s"))
+p = g.readLine(app(), words("serve", "s"))
 p.offer("port", "7000", g.Source.Config)
 p.offer("port", "7100", g.Source.Env)
 p.offer("port", "7200", g.Source.Config)
 p.seal()
 check("env beats config, which beats the default", p.integer("port") == 7100 and p.source("port") == g.Source.Env, p.text("port"))
-p = g.Parser.read(app(), words("serve", "-p", "1", "s"))
+p = g.readLine(app(), words("serve", "-p", "1", "s"))
 p.offer("port", "7100", g.Source.Env)
 p.seal()
 check("the command line beats the environment", p.integer("port") == 1 and p.source("port") == g.Source.Argv)

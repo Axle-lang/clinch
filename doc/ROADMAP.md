@@ -2,8 +2,8 @@
 
 Each slice is pushed on its own, with its tests, and leaves the tree green.
 
-1. **Declaration and parsing** — `Command`, `Opt`, `Arg`, `Parser`, suggestions, errors, exit statuses. *Done.*
-   - **1b. The process's own line** — `Args::parse(spec)`, so a program never walks `argc()`/`argAt()`; `UsageError::report()`; `Parsed::versionLine()`. *Written and run; awaiting the compiler.*
+1. **Declaration and parsing** — `Command`, `Opt`, `Arg`, `parseLine`, suggestions, errors, exit statuses. *Done.*
+   - **1b. The process's own line** — `parseProcess(spec)`, so a program never walks `argc()`/`argAt()`; `UsageError::report()`; `Parsed::versionLine()`. *Done.*
 2. **Help and version** — `--help`, `--version`, usage lines, examples, aligned columns by terminal width.
 3. **Configuration** — a TOML subset and JSON, `APP_*` environment variables, the order argv > env > file >
    default, and `--explain-config`.

@@ -15,83 +15,64 @@
 //     InvalidValue     a value of the wrong kind: `expected` says what would have done
 //   ConfigError      a file, an environment variable or a default that cannot be used
 
-use crate::core::text::Str;
+use crate::core::text::copyOf;
 
-/** The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case. */
-pub class Exit {
+/**
+ * The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case; the
+ * number is `Exit::Usage as i32`, or `.code()`.
+ */
+pub enum Exit : i32 {
     /** The work was done. */
-    pub static fn ok() : i32 {
-        return 0;
-    }
+    Ok = 0,
 
     /** The program ran and found nothing wrong, except what it was asked to report (as `grep` does). */
-    pub static fn failed() : i32 {
-        return 1;
-    }
+    Failed = 1,
 
     /** The command line was not understood. */
-    pub static fn usage() : i32 {
-        return 2;
-    }
+    Usage = 2,
 
     /** The data given was wrong in its content. */
-    pub static fn data() : i32 {
-        return 65;
-    }
+    Data = 65,
 
     /** An input that was named does not exist or cannot be read. */
-    pub static fn noInput() : i32 {
-        return 66;
-    }
+    NoInput = 66,
 
     /** A service the program needs is not available. */
-    pub static fn unavailable() : i32 {
-        return 69;
-    }
+    Unavailable = 69,
 
     /** An internal fault. */
-    pub static fn software() : i32 {
-        return 70;
-    }
+    Software = 70,
 
     /** The system failed an input or output operation. */
-    pub static fn io() : i32 {
-        return 74;
-    }
+    Io = 74,
 
     /** A permission is missing. */
-    pub static fn noPermission() : i32 {
-        return 77;
-    }
+    NoPermission = 77,
 
     /** A configuration cannot be used. */
-    pub static fn config() : i32 {
-        return 78;
-    }
+    Config = 78,
 
     /** The person cancelled with Ctrl-C: 128 plus the signal's number, as a shell reports it. */
-    pub static fn interrupted() : i32 {
-        return 130;
-    }
+    Interrupted = 130,
 
     /** The process was asked to stop with SIGTERM. */
-    pub static fn terminated() : i32 {
-        return 143;
+    Terminated = 143,
+
+    /** The number the process leaves with. */
+    pub fn code(self) : i32 {
+        return self as i32;
     }
 }
 
-/** The sentences that follow an error. */
-pub class Hint {
-    /**
-     * "did you mean `x`?" for a suggestion, or nothing for none. It is a function, not a conditional inside
-     * the call to `super`: the text must be a value of its own when the exception takes it.
-     */
-    pub static fn didYouMean(suggestion : string) : string {
-        if (suggestion == "") {
-            return "";
-        }
-        return "did you mean `" + suggestion + "`?";
+/**
+ * "did you mean `x`?" for a suggestion, or nothing for none. It is a function, not a conditional inside the
+ * call to `super`: the text must be a value of its own when the exception takes it.
+ */
+pub fn didYouMean(suggestion : string) : string {
+    if (suggestion == "") {
+        return "";
     }
+    return "did you mean `" + suggestion + "`?";
 }
 
 /** Everything this library throws. */
@@ -111,8 +92,8 @@ pub exception UsageError : CliError {
     pub hint : string;
 
     constructor(message : string, hint : string) {
-        super(message, 2);
-        self.hint = Str::copy(hint);
+        super(message, Exit::Usage as i32);
+        self.hint = copyOf(hint);
     }
 
     /** What to print for it: the message, and under it the hint when there is one. */
@@ -135,10 +116,10 @@ pub exception UnknownCommand : UsageError {
     constructor(name : string, suggestion : string) {
         super(
             "unknown command `" + name + "`",
-            Hint::didYouMean(suggestion)
+            didYouMean(suggestion)
         );
-        self.name = Str::copy(name);
-        self.suggestion = Str::copy(suggestion);
+        self.name = copyOf(name);
+        self.suggestion = copyOf(suggestion);
     }
 }
 
@@ -153,10 +134,10 @@ pub exception UnknownOption : UsageError {
     constructor(name : string, suggestion : string) {
         super(
             "unknown option `" + name + "`",
-            Hint::didYouMean(suggestion)
+            didYouMean(suggestion)
         );
-        self.name = Str::copy(name);
-        self.suggestion = Str::copy(suggestion);
+        self.name = copyOf(name);
+        self.suggestion = copyOf(suggestion);
     }
 }
 
@@ -167,7 +148,7 @@ pub exception MissingValue : UsageError {
 
     constructor(option : string, expects : string) {
         super("option `" + option + "` needs a value", "give it as `" + option + " <" + expects + ">`");
-        self.option = Str::copy(option);
+        self.option = copyOf(option);
     }
 }
 
@@ -178,7 +159,7 @@ pub exception MissingArgument : UsageError {
 
     constructor(argument : string) {
         super("missing required argument <" + argument + ">", "");
-        self.argument = Str::copy(argument);
+        self.argument = copyOf(argument);
     }
 }
 
@@ -189,7 +170,7 @@ pub exception UnexpectedArgument : UsageError {
 
     constructor(value : string) {
         super("unexpected argument `" + value + "`", "");
-        self.value = Str::copy(value);
+        self.value = copyOf(value);
     }
 }
 
@@ -210,12 +191,12 @@ pub exception InvalidValue : UsageError {
     constructor(option : string, value : string, expected : string, suggestion : string) {
         super(
             "invalid value `" + value + "` for `" + option + "`: expected " + expected,
-            Hint::didYouMean(suggestion)
+            didYouMean(suggestion)
         );
-        self.option = Str::copy(option);
-        self.value = Str::copy(value);
-        self.expected = Str::copy(expected);
-        self.suggestion = Str::copy(suggestion);
+        self.option = copyOf(option);
+        self.value = copyOf(value);
+        self.expected = copyOf(expected);
+        self.suggestion = copyOf(suggestion);
     }
 }
 
@@ -225,7 +206,7 @@ pub exception ConfigError : CliError {
     pub source : string;
 
     constructor(source : string, message : string) {
-        super(source + ": " + message, 78);
-        self.source = Str::copy(source);
+        super(source + ": " + message, Exit::Config as i32);
+        self.source = copyOf(source);
     }
 }
