@@ -158,17 +158,18 @@ pub class Str {
 
     /** The decimal integer in `s`, with an optional leading sign, or `ok == false`. */
     pub static fn toInt(s : string) : (ok: bool, value: i64) {
+        let none : i64 = 0;
         let negative : bool = s.byteLength > 0 && s.byteAt(0) == 45;
         let signed : bool = s.byteLength > 0 && (s.byteAt(0) == 45 || s.byteAt(0) == 43);
         let first : i64 = signed ? 1 : 0;
         if (s.byteLength <= first || s.byteLength - first > 18) {
-            return (false, 0);
+            return (false, none);
         }
         let mut v : i64 = 0;
         for (i of first..s.byteLength) {
             let d : i32 = s.byteAt(i) - 48;
             if (d < 0 || d > 9) {
-                return (false, 0);
+                return (false, none);
             }
             v = v * 10 + (d as i64);
         }

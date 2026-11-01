@@ -21,7 +21,11 @@ fn spec() : Command {
 fn words() : Values<string> {
     let out : Values<string> = new Values<string>();
     for (i of 1..argc()) {
-        out.add(argAt(i));
+        try {
+            out.add(argAt(i));
+        } catch e : IndexOutOfBoundsException {
+            break;
+        }
     }
     return out;
 }

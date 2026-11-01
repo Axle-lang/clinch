@@ -107,7 +107,7 @@ pub class Parsed {
     }
 
     /** Record an answer, whatever came before it. */
-    pub fn put(mut self, name : string, value : string, source : Source) : void {
+    pub fn put(mut self, own name : string, own value : string, source : Source) : void {
         self.names.add(name);
         self.values.add(value);
         self.origins.add(source.rank());
@@ -117,7 +117,7 @@ pub class Parsed {
      * Record an answer from a lower source: kept only if `name` has no answer yet from a source at least
      * as high. This is how the environment, a file and the defaults fill in what the line left unsaid.
      */
-    pub fn offer(mut self, name : string, value : string, source : Source) : void {
+    pub fn offer(mut self, own name : string, own value : string, source : Source) : void {
         let at : i32 = self.last(name);
         if (at >= 0 && self.origins.at(at) >= (source as i32)) {
             return;
@@ -227,7 +227,7 @@ pub class Parsed {
     }
 
     /** Record a positional argument. */
-    pub fn push(mut self, value : string) : void {
+    pub fn push(mut self, own value : string) : void {
         self.pos.add(value);
     }
 
@@ -368,7 +368,7 @@ pub class Parser {
     }
 
     /** Check `value` against what `opt` declares and record it. */
-    static fn store(out : Parsed, opt : Opt, typed : string, value : string) : void ! UsageError {
+    static fn store(out : Parsed, opt : Opt, typed : string, own value : string) : void ! UsageError {
         if (!opt.accepts(value)) {
             let near : string = opt.kind == Kind::Choice ? Suggest::nearest(value, opt.words()) : "";
             throw InvalidValue(typed, value, opt.expects(), near);

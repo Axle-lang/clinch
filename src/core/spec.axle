@@ -425,7 +425,7 @@ pub class Command : Copy<Command> {
     }
 
     /** Let it answer to another name too. */
-    pub fn alias(mut self, name : string) : Command {
+    pub fn alias(mut self, own name : string) : Command {
         self.aliases.add(name);
         return self;
     }
@@ -437,7 +437,7 @@ pub class Command : Copy<Command> {
     }
 
     /** Add an example: the line as typed, and what it does. */
-    pub fn example(mut self, line : string, note : string) : Command {
+    pub fn example(mut self, own line : string, own note : string) : Command {
         self.lines.add(line);
         self.notes.add(note);
         return self;
