@@ -1,0 +1,41 @@
+// args — the command line of the process, read against what the program declared.
+//
+//     let parsed : Parsed = Args::parse(spec());
+//
+// A program does not walk `argc()` and `argAt()` itself: the words it was started with are read here, once,
+// and handed to the parser. `Args::words()` is for the program that wants them as they are.
+
+use crate::core::list::Values;
+use crate::core::parse::{Parsed, Parser};
+use crate::core::spec::Command;
+use crate::core::error::UsageError;
+use std::sys::process::{argAt, argc};
+
+/** The arguments the process was started with. */
+pub class Args {
+    /** The words after the program's name, as they were typed. */
+    pub static fn words() : Values<string> {
+        let out : Values<string> = new Values<string>();
+        for (i of 1..argc()) {
+            try {
+                out.add(argAt(i));
+            } catch e : IndexOutOfBoundsException {
+                break;
+            }
+        }
+        return out;
+    }
+
+    /** The process's own command line, read against `root`, defaults included. */
+    pub static fn parse(root : Command) : Parsed ! UsageError {
+        return Parser::parse(root, Args::words());
+    }
+
+    /**
+     * The same without the defaults, so the environment and a file can be offered first and `seal()` called
+     * after.
+     */
+    pub static fn read(root : Command) : Parsed ! UsageError {
+        return Parser::read(root, Args::words());
+    }
+}

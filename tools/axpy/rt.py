@@ -532,6 +532,21 @@ sysinfo = _Namespace(
 )
 
 
+# The process's own arguments, as `std::sys::process` answers them: index 0 is the program's name. A test
+# replaces the contents of `ARGV`.
+ARGV = ["tool"]
+
+
+def argc():
+    return len(ARGV)
+
+
+def argAt(i):
+    if i < 0 or i >= len(ARGV):
+        raise IndexOutOfBoundsException("argument %d" % i)
+    return ARGV[i]
+
+
 def nanoTime():
     import time
     return time.monotonic_ns()

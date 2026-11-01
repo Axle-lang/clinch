@@ -4,7 +4,7 @@ This file says what the code claims and how far that has been checked.
 
 - **What the compiler has and has not seen.** `axle check` and `axle build` pass on Windows and Linux in CI, and
   `examples/hello` runs there with its exit status checked. That is one program exercising the parser, the
-  suggestions and the errors. The 68 checks in `tools/axpy` run the *translated* sources: a model of the language,
+  suggestions and the errors. The 74 checks in `tools/axpy` run the *translated* sources: a model of the language,
   which does not model who owns a string (see the README's Honest status). Anything not reached by
   `examples/hello` is proved by the translator only.
 - **Chaining starts from a `static fn`.** `Command::create(...).add(...)` is checked on the compiler; `new Command(...)

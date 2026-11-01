@@ -114,6 +114,14 @@ pub exception UsageError : CliError {
         super(message, 2);
         self.hint = Str::copy(hint);
     }
+
+    /** What to print for it: the message, and under it the hint when there is one. */
+    pub fn report(self) : string {
+        if (self.hint == "") {
+            return "error: " + self.message;
+        }
+        return "error: " + self.message + "\n  " + self.hint;
+    }
 }
 
 /** A subcommand that does not exist. */

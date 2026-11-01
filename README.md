@@ -14,8 +14,8 @@
   <img alt="Targets: Windows and Linux" src="https://img.shields.io/badge/targets-Windows%20%C2%B7%20Linux-FF7A45?style=flat-square&labelColor=1b1b2b">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-2E7D32?style=flat-square&labelColor=1b1b2b">
   <img alt="Unsafe: none" src="https://img.shields.io/badge/unsafe-none-9C27B0?style=flat-square&labelColor=1b1b2b">
-  <img alt="Extern: sys ports only" src="https://img.shields.io/badge/extern%20%22C%22-sys%2F%20ports%20only-1D6FB8?style=flat-square&labelColor=1b1b2b">
-  <img alt="68 checks" src="https://img.shields.io/badge/checks-68-2E7D32?style=flat-square&labelColor=1b1b2b">
+  <img alt="Extern: none yet" src="https://img.shields.io/badge/extern%20%22C%22-none%20yet-1D6FB8?style=flat-square&labelColor=1b1b2b">
+  <img alt="74 checks" src="https://img.shields.io/badge/checks-74-2E7D32?style=flat-square&labelColor=1b1b2b">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-555555?style=flat-square&labelColor=1b1b2b">
 </p>
 
@@ -38,7 +38,7 @@
 > the arguments of a program to the one place that says what they are.
 
 > **Status.** The first slice is written, compiled and run: the declaration, the parser, the suggestions,
-> the errors and the statuses — 68 checks over the translated sources, and `examples/hello` built and run by
+> the errors and the statuses — 74 checks over the translated sources, and `examples/hello` built and run by
 > CI on Windows and Linux with the real compiler. **`--help`, configuration files, environment variables,
 > completion scripts, JSON/CSV output, prompts, progress and signal handling are not written yet**; the
 > [roadmap](doc/ROADMAP.md) says in which order, and [`LIMITATIONS.md`](LIMITATIONS.md) says what is proven and
@@ -49,14 +49,14 @@
 | | |
 |---|---|
 | **Language** | 100% [Axle](https://axle-lang.dev) — no C, no vendored library, no `[link]` section |
-| **Platforms** | Windows x86-64 and Linux x86-64 — one source tree. Everything written so far is portable and touches no operating system; the terminal and the signals, when they arrive, will sit behind per-port seams in `src/sys/`, as in [gesso](https://github.com/Axle-lang/gesso) |
+| **Platforms** | Windows x86-64 and Linux x86-64 — one source tree. Everything written so far is portable and has no `extern "C"`: the one thing it asks of the system is the process's own arguments, through `std`; the terminal and the signals, when they arrive, will sit behind per-port seams in a `src/sys/` **that does not exist yet**, as in [gesso](https://github.com/Axle-lang/gesso) |
 | **Declaration** | A `Command` is a name, options, positional arguments and subcommands. An option is declared **the way it is typed** — `-p, --port <n>` is a short name, a long name and a value — and its kind (`integer`, `number`, `path`, `text`, `choice`, a flag, a repeatable one) is the kind its value is checked against |
 | **Reading** | `--port 80`, `--port=80`, `-p 80`, `-p80`, clusters (`-vqp 80`), repeated options, subcommands and their aliases, `--`, a lone `-`; the options of a parent work before *and* after the subcommand |
 | **Mistakes** | Every refusal is a `UsageError` — a `CliError` carrying the **status the process should leave with** — and one of six reasons: `UnknownCommand`, `UnknownOption`, `MissingValue`, `MissingArgument`, `UnexpectedArgument`, `InvalidValue`. When the word is a near miss of a real one it says so: ``did you mean `--port`?`` |
 | **Provenance** | Every answer remembers where it came from — the command line, the environment, a file, or the declared default — and a lower source never replaces a higher one: `parsed.source("port")` |
 | **Statuses** | `Exit::usage()` is 2, `config()` is 78, `interrupted()` is 130, and the rest of `sysexits.h` is named, so a program leaves with a number a shell script can read |
 | **Strings** | Read as bytes: an argument holding any language passes through unchanged, and codepoints are decoded only where a screen's width needs them |
-| **Verification** | The portable logic is translated to Python and run — 68 checks — beside a checker for layers and seams that plants 25 faults and fails if any is accepted; the real compiler builds and runs the example in CI |
+| **Verification** | The portable logic is translated to Python and run — 74 checks — beside a checker for layers and seams that plants 25 faults and fails if any is accepted; the real compiler builds and runs the example in CI |
 | **Known limits** | All of them, with what each would take to lift: [`LIMITATIONS.md`](LIMITATIONS.md) |
 
 ## ✨ Highlights
@@ -83,8 +83,7 @@ clinch = { path = "../clinch" }
 ```
 
 ```rs
-use clinch::{Arg, Command, Opt, Parsed, Parser, UsageError, Values};
-use std::sys::process::{argAt, argc};
+use clinch::{Arg, Args, Command, Opt, Parsed, UsageError};
 
 fn spec() : Command {
     let serve : Command = Command::create("serve", "Pretend to serve a folder")
@@ -97,36 +96,24 @@ fn spec() : Command {
         .sub(serve);
 }
 
-/** The words after the program's name. */
-fn words() : Values<string> {
-    let out : Values<string> = new Values<string>();
-    for (i of 1..argc()) {
-        try {
-            out.add(argAt(i));
-        } catch e : IndexOutOfBoundsException {
-            break;
-        }
-    }
-    return out;
-}
-
-// `main` is the only place errors stop: every call above says what it can raise.
+// `main` is the only place errors stop: `Args::parse` says what it can raise.
 fn main() : i32 {
     try {
-        let parsed : Parsed = Parser::parse(spec(), words());
+        let parsed : Parsed = Args::parse(spec());     // the process's own command line
+        if (parsed.versionAsked) {
+            println(parsed.versionLine());              // hello 0.1.0
+            return 0;
+        }
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
         return 0;
     } catch e : UsageError {
-        println("error: " + e.message);
-        if (e.hint != "") {
-            println("  " + e.hint);
-        }
+        println(e.report());            // the message, and under it "did you mean …?" when one is near
         return e.code;                  // 2: the shell can tell a mistake from a failure
     }
 }
 ```
 
-That is `examples/hello` — less its two lines that answer `--help` and `--version` — which CI builds and runs on both systems:
+That is `examples/hello` (which also answers `--help` with a line written by hand, until the library writes it), built and run by CI on both systems:
 
 ```text
 $ hello serve --port 9000 site
@@ -170,13 +157,14 @@ Values are read with `text`, `integer`, `number` and `flag`; positionals with `a
 | `core::spec` | `Command`, `Opt`, `Arg`, `Kind` — the declaration | written, compiled, **run** |
 | `core::suggest` | edit distance, `Suggest::nearest` | written, compiled, **run** |
 | `core::parse` | `Parser`, `Parsed`, `Source` | written, compiled, **run** |
+| `app::args` | `Args::parse(spec)`: the process's own command line, read for you — no `argc`/`argAt` loop | written, **run** over a fake `argv`; the compiler has not seen it yet |
 | `core::help` | `--help` and `--version` generated from the declaration, wrapped to the terminal's width | next slice |
 | `core::config` | a TOML subset and JSON, `APP_*` environment variables, the four-level order, `--explain-config` | planned |
 | `core::output` | text, JSON and CSV from one description of the rows | planned |
 | `core::complete` | Bash, Zsh, Fish and PowerShell completion scripts, generated from the declaration | planned |
 | `sys` | per-port seams: is it a terminal, how wide, ANSI on Windows, Ctrl-C and SIGTERM | planned |
 | `term` | confirmation, choice, progress, cancellation | planned |
-| `app` | `App::run` — parse, resolve, run, report — and netaudit migrated to it as the demonstration | planned |
+| `app::run` | `App::run` — parse, resolve, run, report — and netaudit migrated to it as the demonstration | planned |
 
 The order, and why, is in [`doc/ROADMAP.md`](doc/ROADMAP.md).
 
@@ -197,10 +185,10 @@ Layers, bottom to top. **A module never reaches upward**, and the logic never se
 <div align="center"><img src="doc/img/layers.png" width="100%"></div>
 
 ```
-   app      App::run                                 the front door
-   term     prompt · progress                        what needs a terminal
-   sys      one seam per concern, one file per port  every extern "C", and only here
-   core     spec · parse · suggest · error · text    the vocabulary and the logic; no OS, fully tested
+   app      Args · (App::run)                        the front door            Args written · run planned
+   term     (prompt · progress)                      what needs a terminal     planned — no src/term yet
+   sys      (one seam per concern, one file per port) every extern "C"         planned — no src/sys yet
+   core     spec · parse · suggest · error · text    the vocabulary and logic  written · no OS · tested
 ```
 
 The point of the split is the tests: everything in `core` runs as Python over the translated sources, with no
@@ -217,7 +205,7 @@ interface owns the screen. [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) has the 
 | `tools/check.py` | every file parses; names, arities, mutability and exhaustiveness resolve; layers never reach upward; `extern "C"` only in ports, `unsafe` only in `raw/`; lines stay within 110 columns |
 | `tools/check.py --selftest` | plants 25 faults, one at a time, and fails if the checker accepts any |
 | `tools/gen_lib.py --check` | `src/lib.axle` names every module |
-| `tools/axpy/` | an Axle → Python translator that runs the portable logic — 68 checks |
+| `tools/axpy/` | an Axle → Python translator that runs the portable logic — 74 checks |
 | CI | `axle check` and `axle build` on Windows and Linux, then the example run, with its exit status checked |
 
 ```bash
@@ -240,6 +228,7 @@ still only checked.
 | | |
 |---|---|
 | `src/core/` | vocabulary and logic — no operating system in it |
+| `src/app/` | `Args`: the process's own command line. `src/sys/` and `src/term/` do **not exist yet** |
 | `examples/hello/` | the smallest program with a command line worth the name; built and run by CI |
 | `doc/` | [architecture](doc/ARCHITECTURE.md) · [roadmap](doc/ROADMAP.md) · `img/` |
 | `tools/` | the checker, the translator, the tests, the picture sources |

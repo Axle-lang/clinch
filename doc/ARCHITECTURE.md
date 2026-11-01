@@ -6,10 +6,10 @@ Layers, bottom to top. A module imports from below, never from above or from a s
 | Layer | Holds | Knows the operating system |
 |---|---|---|
 | `core` | the vocabulary and the logic: text, errors, the declaration, suggestions, parsing, help, configuration, output, completion | no |
-| `raw` | raw memory, for the seams | no |
-| `sys` | one answer per port (`win32`, `linux`): terminal, signals | yes — the only place |
-| `term` | prompts, progress, cancellation, over `sys` | through `sys` |
-| `app` | `App::run`: parse, resolve configuration, run, report | through `term` |
+| `raw` | raw memory, for the seams — *not written; nothing needs it yet* | no |
+| `sys` | one answer per port (`win32`, `linux`): terminal, signals — *not written; `src/sys/` does not exist yet* | yes — the only place |
+| `term` | prompts, progress, cancellation, over `sys` — *not written* | through `sys` |
+| `app` | `Args` (written): the process's own command line. `App::run` (planned): parse, resolve configuration, run, report | `Args` asks `std` for the process's arguments and nothing else |
 
 The point of the split is the tests: everything in `core` runs as Python over the translated sources, with
 no terminal. The terminal and the signals are behind a seam that a fake answers.

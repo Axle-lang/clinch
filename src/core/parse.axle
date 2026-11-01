@@ -96,6 +96,15 @@ pub class Parsed {
         return out;
     }
 
+    /** What `--version` prints: the program's name and its version, `tool 1.2.0`. */
+    pub fn versionLine(self) : string {
+        let root : Command = self.levels.at(0);
+        if (root.ver == "") {
+            return Str::copy(root.name);
+        }
+        return root.name + " " + root.ver;
+    }
+
     /** Note that help was asked for. */
     pub fn askHelp(mut self) : void {
         self.helpAsked = true;

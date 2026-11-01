@@ -156,6 +156,20 @@ check("an option of a sibling command is unknown here", isinstance(e, g.UnknownO
 e = thrown(lambda: run())
 check("a bare call of a command group asks for a command", isinstance(e, g.UsageError), e)
 
+# --- the process's own command line ----------------------------------------------------------
+rt.ARGV[:] = ["tool", "serve", "--port", "9000", "site"]
+check("the process's words skip the program's name", strs(g.Args.words()) == ["serve", "--port", "9000", "site"], strs(g.Args.words()))
+p = g.Args.parse(app())
+check("Args::parse reads the process's own line", p.path() == "tool serve" and p.integer("port") == 9000 and p.arg("root") == "site")
+rt.ARGV[:] = ["tool", "serve", "--prot", "1", "s"]
+e = thrown(lambda: g.Args.parse(app()))
+check("a mistake on the process's line is reported", isinstance(e, g.UsageError) and e.report() == "error: unknown option `--prot`\n  did you mean `--port`?", e)
+rt.ARGV[:] = ["tool"]
+check("no words is no words", g.Args.words().size() == 0)
+rt.ARGV[:] = ["tool", "--version"]
+check("the version line names the program", g.Args.parse(app()).versionLine() == "tool 1.2.0")
+check("a report without a hint is one line", g.UsageError("boom", "").report() == "error: boom")
+
 # --- exit codes ------------------------------------------------------------------------------
 check("exit statuses follow sysexits", (g.Exit.ok(), g.Exit.usage(), g.Exit.config(), g.Exit.interrupted()) == (0, 2, 78, 130))
 c = g.ConfigError("app.toml", "line 3: expected `=`")

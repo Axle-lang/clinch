@@ -33,7 +33,7 @@ PY_RESERVED = set(keyword.kwlist) | {
 RUNTIME_NAMES = {
     "Mem", "SlotIndex", "AssetFile", "Rect", "Frame", "Surface", "StringBuilder", "println", "IOException",
     "FileNotFoundException", "ParseException", "IndexOutOfBoundsException", "IllegalStateException",
-    "IllegalArgumentException", "ArithmeticException", "PlatformError", "AxleError", "nanoTime", "now", "pid", "parentPid", "panicMsg", "sysinfo", "UnsupportedOperationException",
+    "IllegalArgumentException", "ArithmeticException", "PlatformError", "AxleError", "nanoTime", "now", "argc", "argAt", "pid", "parentPid", "panicMsg", "sysinfo", "UnsupportedOperationException",
 }
 PRIM_METHODS = {"min", "max", "abs", "sqrt", "sin", "cos", "pow", "floorToInt", "ceilToInt", "truncToInt", "round",
                 "toString", "isEmpty", "equals", "substring", "charAt", "byteAt"}

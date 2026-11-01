@@ -1,9 +1,8 @@
 // hello — the smallest program that has a command line worth the name.
 //
-// Build & run:  axle build, then  target/hello serve --port 9000 site   (or --help, or a typo of either)
+// Build & run:  axle build, then  target/hello serve --port 9000 site   (or --version, or a typo of either)
 
-use clinch::{Arg, Command, CliError, Opt, Parsed, Parser, UsageError, Values};
-use std::sys::process::{argAt, argc};
+use clinch::{Arg, Args, Command, Opt, Parsed, UsageError};
 
 /** What this program accepts. */
 fn spec() : Command {
@@ -17,26 +16,14 @@ fn spec() : Command {
         .sub(serve);
 }
 
-/** The words after the program's name. */
-fn words() : Values<string> {
-    let out : Values<string> = new Values<string>();
-    for (i of 1..argc()) {
-        try {
-            out.add(argAt(i));
-        } catch e : IndexOutOfBoundsException {
-            break;
-        }
-    }
-    return out;
-}
-
 fn main() : i32 {
     try {
-        let parsed : Parsed = Parser::parse(spec(), words());
+        let parsed : Parsed = Args::parse(spec());
         if (parsed.versionAsked) {
-            println("hello 0.1.0");
+            println(parsed.versionLine());
             return 0;
         }
+        // The help text is written by hand until the library writes it from the declaration.
         if (parsed.helpAsked) {
             println("usage: hello [--verbose] serve [--port <n>] <root>");
             return 0;
@@ -44,12 +31,7 @@ fn main() : i32 {
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
         return 0;
     } catch e : UsageError {
-        println("error: " + e.message);
-        let code : i32 = e.code;
-        let hint : string = e.hint;
-        if (hint != "") {
-            println("  " + hint);
-        }
-        return code;
+        println(e.report());
+        return e.code;
     }
 }

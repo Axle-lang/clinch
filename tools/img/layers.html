@@ -22,10 +22,10 @@
 .key .sw.d { background: transparent; border: 1px dashed rgba(255,255,255,.5) }
 </style>
 <h1>Clinch · architecture</h1>
-<h2>The logic never sees a <em>terminal</em>. The terminal is touched in <em>one</em> place.</h2>
+<h2>The logic never sees a <em>terminal</em>. The terminal will be touched in <em>one</em> place.</h2>
 <div class="stack">
   <div class="layer app"><div><div class="name">app</div><div class="note">the front door</div></div>
-    <div class="mods"><div class="m todo">App::run<small>parse · resolve · run · report</small></div></div></div>
+    <div class="mods"><div class="m">Args<small>the process's own command line</small></div><div class="m todo">App::run<small>parse · resolve · run · report</small></div></div></div>
   <div class="layer term"><div><div class="name">term</div><div class="note">what needs a terminal</div></div>
     <div class="mods"><div class="m todo">prompt<small>confirm · choose · input</small></div><div class="m todo">progress<small>bar · spinner · cancel</small></div></div></div>
   <div class="layer sys"><div><div class="name">sys</div><div class="note">seams · every <span class="mono">extern "C"</span></div></div>
@@ -45,5 +45,5 @@
       <div class="m todo">help</div><div class="m todo">config</div><div class="m todo">output</div><div class="m todo">complete</div>
     </div></div>
 </div>
-<div class="legend"><div class="k"><b>68</b> checks run on <span class="mono">core</span></div><div class="k"><b>25</b> planted faults the checker must reject</div><div class="k"><b>2</b> targets compiled by CI: Windows · Linux</div></div>
+<div class="legend"><div class="k"><b>74</b> checks run on <span class="mono">core</span></div><div class="k"><b>25</b> planted faults the checker must reject</div><div class="k"><b>2</b> targets compiled by CI: Windows · Linux</div></div>
 <div class="key"><span class="sw"></span>written, compiled, run &nbsp;&nbsp; <span class="sw d"></span>planned, not written yet</div>
