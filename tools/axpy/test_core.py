@@ -39,12 +39,12 @@ def strs(v):
 
 
 # --- text ------------------------------------------------------------------------------------
-check("Str::toInt reads signed decimals", g.parseInt("-42") == (True, -42) and g.parseInt("+7") == (True, 7))
-check("Str::toInt refuses words and empties", not g.parseInt("4x")[0] and not g.parseInt("")[0] and not g.parseInt("-")[0])
-check("Str::toFloat reads fractions", g.parseFloat("3.25") == (True, 3.25) and g.parseFloat("-0.5")[1] == -0.5)
-check("Str::toFloat refuses lone dots", not g.parseFloat(".")[0] and not g.parseFloat("1.x")[0] and g.parseFloat("2")[0])
-check("Str::pad counts codepoints", g.padRight("é", 3) == "é  " and g.padRight("abcd", 2) == "abcd")
-check("Str::repeat", g.repeatText("ab", 3) == "ababab" and g.repeatText("x", 0) == "")
+check("parseInt reads signed decimals", g.parseInt("-42") == (True, -42) and g.parseInt("+7") == (True, 7))
+check("parseInt refuses words and empties", not g.parseInt("4x")[0] and not g.parseInt("")[0] and not g.parseInt("-")[0])
+check("parseFloat reads fractions", g.parseFloat("3.25") == (True, 3.25) and g.parseFloat("-0.5")[1] == -0.5)
+check("parseFloat refuses lone dots", not g.parseFloat(".")[0] and not g.parseFloat("1.x")[0] and g.parseFloat("2")[0])
+check("padRight counts codepoints", g.padRight("é", 3) == "é  " and g.padRight("abcd", 2) == "abcd")
+check("repeatText", g.repeatText("ab", 3) == "ababab" and g.repeatText("x", 0) == "")
 
 # --- suggestions -----------------------------------------------------------------------------
 check("distance is 0 for equal words", g.editDistance("abc", "abc") == 0)
@@ -90,7 +90,7 @@ def app():
 
 
 def run(*argv):
-    return g.parseLine(app(), words(*argv))
+    return app().parse(words(*argv))
 
 
 c = g.Command.create("a", "x")
@@ -159,15 +159,15 @@ check("a bare call of a command group asks for a command", isinstance(e, g.Usage
 # --- the process's own command line ----------------------------------------------------------
 rt.ARGV[:] = ["tool", "serve", "--port", "9000", "site"]
 check("the process's words skip the program's name", strs(g.processWords()) == ["serve", "--port", "9000", "site"], strs(g.processWords()))
-p = g.parseProcess(app())
-check("Args::parse reads the process's own line", p.path() == "tool serve" and p.integer("port") == 9000 and p.arg("root") == "site")
+p = app().parseProcess()
+check("parseProcess reads the process's own line", p.path() == "tool serve" and p.integer("port") == 9000 and p.arg("root") == "site")
 rt.ARGV[:] = ["tool", "serve", "--prot", "1", "s"]
-e = thrown(lambda: g.parseProcess(app()))
+e = thrown(lambda: app().parseProcess())
 check("a mistake on the process's line is reported", isinstance(e, g.UsageError) and e.report() == "error: unknown option `--prot`\n  did you mean `--port`?", e)
 rt.ARGV[:] = ["tool"]
 check("no words is no words", g.processWords().size() == 0)
 rt.ARGV[:] = ["tool", "--version"]
-check("the version line names the program", g.parseProcess(app()).versionLine() == "tool 1.2.0")
+check("the version line names the program", app().parseProcess().versionLine() == "tool 1.2.0")
 check("a report without a hint is one line", g.UsageError("boom", "").report() == "error: boom")
 
 # --- exit codes ------------------------------------------------------------------------------
@@ -176,13 +176,13 @@ c = g.ConfigError("app.toml", "line 3: expected `=`")
 check("a config error names its source and exits 78", "app.toml" in c.message and c.code == 78 and isinstance(c, g.CliError))
 
 # --- precedence ------------------------------------------------------------------------------
-p = g.readLine(app(), words("serve", "s"))
+p = app().read(words("serve", "s"))
 p.offer("port", "7000", g.Source.Config)
 p.offer("port", "7100", g.Source.Env)
 p.offer("port", "7200", g.Source.Config)
 p.seal()
 check("env beats config, which beats the default", p.integer("port") == 7100 and p.source("port") == g.Source.Env, p.text("port"))
-p = g.readLine(app(), words("serve", "-p", "1", "s"))
+p = app().read(words("serve", "-p", "1", "s"))
 p.offer("port", "7100", g.Source.Env)
 p.seal()
 check("the command line beats the environment", p.integer("port") == 1 and p.source("port") == g.Source.Argv)

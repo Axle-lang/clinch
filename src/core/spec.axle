@@ -14,8 +14,11 @@
 // value. The long name is what the program reads it by (`parsed.integer("port")`), the config file
 // and the environment too.
 
+use crate::core::error::UsageError;
 use crate::core::list::{Copy, Values};
+use crate::core::parse::{Parsed, parseLine, readLine};
 use crate::core::text::{copyOf, parseFloat, parseInt, startsWith, tailFrom, utf8Slice};
+use std::sys::process::{argAt, argc};
 use std::text::StringBuilder;
 
 /** What an option's value must be. */
@@ -347,6 +350,19 @@ pub class Commands {
     }
 }
 
+/** The words the process was started with, after the program's name, as they were typed. */
+fn processWords() : Values<string> {
+    let out : Values<string> = new Values<string>();
+    for (i of 1..argc()) {
+        try {
+            out.add(argAt(i));
+        } catch e : IndexOutOfBoundsException {
+            break;
+        }
+    }
+    return out;
+}
+
 /** A command: a program, or one of its subcommands. */
 pub class Command : Copy<Command> {
     /** What it is typed as. */
@@ -428,6 +444,29 @@ pub class Command : Copy<Command> {
         self.lines.add(copyOf(line));
         self.notes.add(copyOf(note));
         return self;
+    }
+
+    /** The command line `words`, read against this command; defaults are added. */
+    pub fn parse(self, words : Values<string>) : Parsed ! UsageError {
+        return parseLine(self, words);
+    }
+
+    /** The process's own command line, read against this command; defaults are added. */
+    pub fn parseProcess(self) : Parsed ! UsageError {
+        return parseLine(self, processWords());
+    }
+
+    /**
+     * `parse` without the defaults, so the environment and a file can be offered first and `seal()` called
+     * after.
+     */
+    pub fn read(self, words : Values<string>) : Parsed ! UsageError {
+        return readLine(self, words);
+    }
+
+    /** `parseProcess` without the defaults. */
+    pub fn readProcess(self) : Parsed ! UsageError {
+        return readLine(self, processWords());
     }
 
     /** The subcommand answering to `word` (by name or alias), or -1. */
