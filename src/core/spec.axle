@@ -5,10 +5,10 @@
 // the same names from a config file or the environment — reads this one description, so the program
 // never states the same fact twice.
 //
-//     let serve : Command = Command::create("serve", "Run the server");
-//     serve.add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"));
-//     serve.add(Opt::flag("-q, --quiet", "Print nothing but errors"));
-//     serve.arg(Arg::required("root", "Folder to serve"));
+//     let serve : Command = Command::create("serve", "Run the server")
+//         .add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"))
+//         .add(Opt::flag("-q, --quiet", "Print nothing but errors"))
+//         .arg(Arg::required("root", "Folder to serve"));
 //
 // An option is declared by the way it is typed: `-p, --port <n>` is a short name, a long name and a
 // value. The long name is what the program reads it by (`parsed.int("port")`), the config file
@@ -366,35 +366,41 @@ pub class Command : Copy<Command> {
         return new Command(name, about);
     }
 
-    /** Add an option. */
-    pub fn add(mut self, own o : Opt) : void {
+    /** Add an option; the command itself is returned, so declarations chain. */
+    pub fn add(mut self, own o : Opt) : Command {
         self.opts.add(o);
+        return self;
     }
 
     /** Add a positional argument. */
-    pub fn arg(mut self, own a : Arg) : void {
+    pub fn arg(mut self, own a : Arg) : Command {
         self.args.add(a);
+        return self;
     }
 
     /** Add a subcommand. */
-    pub fn sub(mut self, own c : Command) : void {
+    pub fn sub(mut self, own c : Command) : Command {
         self.subs.add(c);
+        return self;
     }
 
     /** Let it answer to another name too. */
-    pub fn alias(mut self, name : string) : void {
+    pub fn alias(mut self, name : string) : Command {
         self.aliases.add(name);
+        return self;
     }
 
     /** Give it a version. */
-    pub fn version(mut self, v : string) : void {
+    pub fn version(mut self, v : string) : Command {
         self.ver = v;
+        return self;
     }
 
     /** Add an example: the line as typed, and what it does. */
-    pub fn example(mut self, line : string, note : string) : void {
+    pub fn example(mut self, line : string, note : string) : Command {
         self.lines.add(line);
         self.notes.add(note);
+        return self;
     }
 
     /** The subcommand answering to `word` (by name or alias), or -1. */

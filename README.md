@@ -6,11 +6,11 @@ Subcommands, options, positional arguments, validation with *"did you mean…?"*
 something — all read from one description of what the program accepts.
 
 ```axle
-let serve : Command = Command::create("serve", "Run the server");
-serve.alias("run");
-serve.add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"));
-serve.add(Opt::choice("--format <fmt>", "Output", "text|json|csv", "text"));
-serve.arg(Arg::required("root", "Folder to serve"));
+let serve : Command = Command::create("serve", "Run the server")
+    .alias("run")
+    .add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"))
+    .add(Opt::choice("--format <fmt>", "Output", "text|json|csv", "text"))
+    .arg(Arg::required("root", "Folder to serve"));
 
 let parsed : Parsed = Parser::parse(root, words);
 let port : i64 = parsed.integer("port");

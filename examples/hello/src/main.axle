@@ -7,15 +7,14 @@ use std::sys::process::{argAt, argc};
 
 /** What this program accepts. */
 fn spec() : Command {
-    let root : Command = Command::create("hello", "A tiny server that serves nothing");
-    root.version("0.1.0");
-    root.add(Opt::flag("-v, --verbose", "Say more"));
-    let serve : Command = Command::create("serve", "Pretend to serve a folder");
-    serve.alias("run");
-    serve.add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"));
-    serve.arg(Arg::required("root", "Folder to serve"));
-    root.sub(serve);
-    return root;
+    let serve : Command = Command::create("serve", "Pretend to serve a folder")
+        .alias("run")
+        .add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"))
+        .arg(Arg::required("root", "Folder to serve"));
+    return Command::create("hello", "A tiny server that serves nothing")
+        .version("0.1.0")
+        .add(Opt::flag("-v, --verbose", "Say more"))
+        .sub(serve);
 }
 
 /** The words after the program's name. */
@@ -32,7 +31,7 @@ fn main() : i32 {
         let parsed : Parsed = Parser::parse(spec(), words());
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
         return 0;
-    } catch (e : UsageError) {
+    } catch e : UsageError {
         println("error: " + e.message);
         if (e.hint != "") {
             println("  " + e.hint);

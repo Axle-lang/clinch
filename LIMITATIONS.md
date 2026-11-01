@@ -6,9 +6,9 @@ This file says what the code claims and how far that has been checked.
   documentation and run through the Axle→Python translator in `tools/axpy`, which is a model of the
   language, not the compiler. CI runs `axle check` and `axle build` on Windows and Linux; until those jobs
   are green the compiler's word is the only one that counts.
-- **Fluent chaining is not used.** Options are added with `cmd.add(...)` statements, not
-  `cmd.add(...).add(...)`, because returning `self` from a `mut self` method is not something the
-  documentation shows. If it works, an API like that can follow.
+- **Chaining starts from a `static fn`.** `Command::create(...).add(...)` is checked on the compiler; `new Command(...)
+  .add(...)` is not valid Axle (`new X()` without parentheses reads as a statement), so the library offers
+  `create` and never asks for the other form.
 - **Numbers.** Integers are decimal with an optional sign and at most 18 digits. Floats are decimal with an
   optional fraction; there is no exponent (`1e3`) and no `inf` or `nan`.
 - **Case.** Suggestions ignore the case of ASCII letters only.

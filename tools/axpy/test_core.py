@@ -74,27 +74,27 @@ check("positional usage text", g.Arg.required("root", "x").usage() == "<root>" a
 
 
 def app():
-    root = g.Command.create("tool", "A tool")
-    root.version("1.2.0")
-    root.add(g.Opt.flag("-v, --verbose", "More output"))
-    root.add(g.Opt.choice("--format <fmt>", "Output", "text|json|csv", "text"))
-    serve = g.Command.create("serve", "Run the server")
-    serve.alias("run")
-    serve.add(g.Opt.integer("-p, --port <n>", "Port", "8080"))
-    serve.add(g.Opt.many("-I, --include <dir>", "Search path"))
-    serve.add(g.Opt.flag("-q, --quiet", "Quiet"))
-    serve.arg(g.Arg.required("root", "Folder"))
-    serve.arg(g.Arg.rest("extra", "More"))
-    root.sub(serve)
-    ls = g.Command.create("list", "List things")
-    ls.arg(g.Arg.optional("filter", "Filter"))
-    root.sub(ls)
-    return root
+    serve = (g.Command.create("serve", "Run the server")
+             .alias("run")
+             .add(g.Opt.integer("-p, --port <n>", "Port", "8080"))
+             .add(g.Opt.many("-I, --include <dir>", "Search path"))
+             .add(g.Opt.flag("-q, --quiet", "Quiet"))
+             .arg(g.Arg.required("root", "Folder"))
+             .arg(g.Arg.rest("extra", "More")))
+    return (g.Command.create("tool", "A tool")
+            .version("1.2.0")
+            .add(g.Opt.flag("-v, --verbose", "More output"))
+            .add(g.Opt.choice("--format <fmt>", "Output", "text|json|csv", "text"))
+            .sub(serve)
+            .sub(g.Command.create("list", "List things").arg(g.Arg.optional("filter", "Filter"))))
 
 
 def run(*argv):
     return g.Parser.parse(app(), words(*argv))
 
+
+c = g.Command.create("a", "x")
+check("declarations chain on the same object", c.version("1").alias("b").add(g.Opt.flag("-f", "x")) is c and c.opts.size() == 1)
 
 # --- parsing ---------------------------------------------------------------------------------
 p = run("serve", "site")
