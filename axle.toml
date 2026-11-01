@@ -1,0 +1,11 @@
+[package]
+name = "clinch"
+version = "0.1.0"
+kind = "lib"
+# The targets the library promises to serve. The promise is what the port checks enforce: an
+# incomplete port is an error only for a target named here.
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+
+# No `[dependencies]` and no `[link]` section: the parsing, the help, the configuration and the
+# completion scripts are plain Axle over `std`. The two ports are declared when `src/sys/` arrives, with
+# the seams for the terminal and the signals (doc/ARCHITECTURE.md).

@@ -1,0 +1,214 @@
+// text — what a command line needs of a string: codepoints, cuts, searches, numbers.
+//
+// An Axle `string` is UTF-8 and is cut by byte offsets. Everything here works on bytes and decodes a
+// codepoint only where the width of text on a screen matters (`Utf8::count`), so an argument holding
+// any language passes through unchanged.
+
+use std::text::StringBuilder;
+
+/** The codepoint standing for a byte sequence that does not decode. */
+const REPLACEMENT : i32 = 65533;
+
+/** UTF-8 decoding. */
+pub class Utf8 {
+    /**
+     * How many bytes the codepoint that starts with byte `lead` takes; 0 for a byte that cannot start one.
+     */
+    pub static fn width(lead : i32) : i32 {
+        return match lead {
+            0..=127 => 1,
+            192..=223 => 2,
+            224..=239 => 3,
+            240..=247 => 4,
+            _ => 0,
+        };
+    }
+
+    /**
+     * The codepoint starting at byte `i` of `s`, and how many bytes it takes (1 for a bad byte, 0 at the
+     * end).
+     */
+    pub static fn next(s : string, i : i64) : (cp: i32, n: i32) {
+        if (i >= s.byteLength) {
+            return (0, 0);
+        }
+        let lead : i32 = s.byteAt(i);
+        let width : i32 = Utf8::width(lead);
+        if (width == 0 || i + (width as i64) > s.byteLength) {
+            return (REPLACEMENT, 1);
+        }
+        let mut cp : i32 = width == 1 ? lead : lead & (127 >> width);
+        for (k of 1..width) {
+            let b : i32 = s.byteAt(i + (k as i64));
+            if ((b & 192) != 128) {
+                return (REPLACEMENT, 1);
+            }
+            cp = (cp << 6) | (b & 63);
+        }
+        return (cp, width);
+    }
+
+    /**
+     * The bytes of `s` from `a` up to `b`, as text; the cuts are clamped to the string and must fall between
+     * codepoints.
+     */
+    pub static fn slice(s : string, a : i64, b : i64) : string {
+        let lo : i64 = a < 0 ? 0 : a;
+        let hi : i64 = b > s.byteLength ? s.byteLength : b;
+        let sb : StringBuilder = new StringBuilder();
+        let mut i : i64 = lo;
+        while (i < hi) {
+            let (cp, used) = Utf8::next(s, i);
+            sb.appendChar(cp);
+            i = i + (used as i64);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Whether `a` and `b` are the same text when the capitals of ASCII are not told from the small letters.
+     */
+    pub static fn sameFolded(a : string, b : string) : bool {
+        if (a.byteLength != b.byteLength) {
+            return false;
+        }
+        for (i of 0..a.byteLength) {
+            let mut x : i32 = a.byteAt(i);
+            let mut y : i32 = b.byteAt(i);
+            if (x >= 65 && x <= 90) {
+                x = x + 32;
+            }
+            if (y >= 65 && y <= 90) {
+                y = y + 32;
+            }
+            if (x != y) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** How many codepoints `s` holds. */
+    pub static fn count(s : string) : i32 {
+        let mut i : i64 = 0;
+        let mut n : i32 = 0;
+        while (i < s.byteLength) {
+            let (cp, used) = Utf8::next(s, i);
+            i = i + (used as i64);
+            n = n + 1;
+        }
+        return n;
+    }
+}
+
+/** Searches and cuts over bytes, and the numbers an argument may hold. */
+pub class Str {
+    /** Whether `text` has `word` at byte `at`. */
+    pub static fn startsAt(text : string, at : i64, word : string) : bool {
+        if (at < 0 || at + word.byteLength > text.byteLength) {
+            return false;
+        }
+        for (k of 0..word.byteLength) {
+            if (text.byteAt(at + k) != word.byteAt(k)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether `text` begins with `word`. */
+    pub static fn starts(text : string, word : string) : bool {
+        return Str::startsAt(text, 0, word);
+    }
+
+    /** The offset of the first byte `c` in bytes `a` .. `b` of `s`, or -1. */
+    pub static fn indexOf(s : string, c : i32, a : i64, b : i64) : i64 {
+        for (i of a..b) {
+            if (s.byteAt(i) == c) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** The text from byte `a` to the end. */
+    pub static fn tail(s : string, a : i64) : string {
+        return Utf8::slice(s, a, s.byteLength);
+    }
+
+    /** `s` followed by enough spaces to take `width` codepoints; unchanged when it is already as wide. */
+    pub static fn pad(s : string, width : i32) : string {
+        let sb : StringBuilder = new StringBuilder();
+        sb.append(s);
+        let have : i32 = Utf8::count(s);
+        for (i of have..width) {
+            sb.append(" ");
+        }
+        return sb.toString();
+    }
+
+    /** `s` written `n` times in a row. */
+    pub static fn repeat(s : string, n : i32) : string {
+        let sb : StringBuilder = new StringBuilder();
+        for (i of 0..n) {
+            sb.append(s);
+        }
+        return sb.toString();
+    }
+
+    /** The decimal integer in `s`, with an optional leading sign, or `ok == false`. */
+    pub static fn toInt(s : string) : (ok: bool, value: i64) {
+        let negative : bool = s.byteLength > 0 && s.byteAt(0) == 45;
+        let signed : bool = s.byteLength > 0 && (s.byteAt(0) == 45 || s.byteAt(0) == 43);
+        let first : i64 = signed ? 1 : 0;
+        if (s.byteLength <= first || s.byteLength - first > 18) {
+            return (false, 0);
+        }
+        let mut v : i64 = 0;
+        for (i of first..s.byteLength) {
+            let d : i32 = s.byteAt(i) - 48;
+            if (d < 0 || d > 9) {
+                return (false, 0);
+            }
+            v = v * 10 + (d as i64);
+        }
+        if (negative) {
+            return (true, -v);
+        }
+        return (true, v);
+    }
+
+    /** The decimal number in `s` (`12`, `-0.5`, `3.25`; no exponent), or `ok == false`. */
+    pub static fn toFloat(s : string) : (ok: bool, value: f64) {
+        let signed : bool = s.byteLength > 0 && (s.byteAt(0) == 45 || s.byteAt(0) == 43);
+        let first : i64 = signed ? 1 : 0;
+        let dot : i64 = Str::indexOf(s, 46, first, s.byteLength);
+        let whole_end : i64 = dot < 0 ? s.byteLength : dot;
+        if (whole_end <= first && (dot < 0 || dot + 1 >= s.byteLength)) {
+            return (false, 0.0);
+        }
+        let mut v : f64 = 0.0;
+        for (i of first..whole_end) {
+            let d : i32 = s.byteAt(i) - 48;
+            if (d < 0 || d > 9) {
+                return (false, 0.0);
+            }
+            v = v * 10.0 + (d as f64);
+        }
+        if (dot >= 0) {
+            let mut scale : f64 = 0.1;
+            for (i of dot + 1..s.byteLength) {
+                let d : i32 = s.byteAt(i) - 48;
+                if (d < 0 || d > 9) {
+                    return (false, 0.0);
+                }
+                v = v + (d as f64) * scale;
+                scale = scale / 10.0;
+            }
+        }
+        if (s.byteAt(0) == 45) {
+            return (true, -v);
+        }
+        return (true, v);
+    }
+}

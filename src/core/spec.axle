@@ -1,0 +1,477 @@
+// spec — what a program accepts, declared once.
+//
+// A `Command` is a name, its options, its positional arguments and its subcommands. Everything the
+// library does with a command line — parsing it, writing `--help`, completing it in a shell, reading
+// the same names from a config file or the environment — reads this one description, so the program
+// never states the same fact twice.
+//
+//     let serve : Command = Command::create("serve", "Run the server");
+//     serve.add(Opt::integer("-p, --port <n>", "Port to listen on", "8080"));
+//     serve.add(Opt::flag("-q, --quiet", "Print nothing but errors"));
+//     serve.arg(Arg::required("root", "Folder to serve"));
+//
+// An option is declared by the way it is typed: `-p, --port <n>` is a short name, a long name and a
+// value. The long name is what the program reads it by (`parsed.int("port")`), the config file
+// and the environment too.
+
+use crate::core::list::{Copy, List, Values};
+use crate::core::text::{Str, Utf8};
+use std::text::StringBuilder;
+
+/** What an option's value must be. */
+pub enum Kind : i32 {
+    /** No value: present or absent. */
+    Flag = 0,
+
+    /** Any text. */
+    Text = 1,
+
+    /** A whole number. */
+    Int = 2,
+
+    /** A number that may have a fraction. */
+    Float = 3,
+
+    /** A path; not checked for existence here. */
+    Path = 4,
+
+    /** One of a fixed set of words. */
+    Choice = 5,
+
+    /** The word that names a value of this kind in a usage line. */
+    pub fn word(self) : string {
+        return match self {
+            Kind::Flag => "",
+            Kind::Text => "text",
+            Kind::Int => "n",
+            Kind::Float => "x",
+            Kind::Path => "path",
+            Kind::Choice => "choice",
+        };
+    }
+
+    /** What is accepted, in a sentence. */
+    pub fn expects(self) : string {
+        return match self {
+            Kind::Flag => "no value",
+            Kind::Text => "text",
+            Kind::Int => "a whole number",
+            Kind::Float => "a number",
+            Kind::Path => "a path",
+            Kind::Choice => "one of the choices",
+        };
+    }
+}
+
+/** An option: `--name`, with or without a value. */
+pub class Opt : Copy<Opt> {
+    /** The long name it is read by, without dashes. */
+    pub name       : string;
+
+    /** The one-letter form, without the dash; empty when it has none. */
+    pub letter     : string;
+
+    /** The name of its value in a usage line (`n` in `--port <n>`); empty for a flag. */
+    pub value      : string;
+
+    /** What its value must be. */
+    pub kind       : Kind;
+
+    /** The sentence `--help` shows beside it. */
+    pub help       : string;
+
+    /** What it is when nothing sets it; empty for none. */
+    pub fallback   : string;
+
+    /** For a `Choice`, the accepted words joined by `|`. */
+    pub choices    : string;
+
+    /** Whether it may be given several times; the values are then all kept. */
+    pub repeatable : bool = false;
+
+    /** Whether `--help` leaves it out (it still works). */
+    pub hidden     : bool = false;
+
+    /** An option as declared by `spec`, e.g. `-j, --jobs <n>`. */
+    constructor(spec : string, help : string, kind : Kind, fallback : string, choices : string) {
+        let (name, letter, value) = Opt::readSpec(spec);
+        self.name = name;
+        self.letter = letter;
+        self.value = value;
+        self.kind = kind;
+        self.help = help;
+        self.fallback = fallback;
+        self.choices = choices;
+        if (kind != Kind::Flag && value == "") {
+            self.value = kind.word();
+        }
+    }
+
+    /** Cut the declaration into its three parts: long name, letter, value name. */
+    static fn readSpec(spec : string) : (name: string, letter: string, value: string) {
+        let mut name : string = "";
+        let mut letter : string = "";
+        let mut value : string = "";
+        let mut at : i64 = 0;
+        while (at < spec.byteLength) {
+            let mut end : i64 = at;
+            while (end < spec.byteLength && spec.byteAt(end) != 32 && spec.byteAt(end) != 44) {
+                end = end + 1;
+            }
+            let word : string = Utf8::slice(spec, at, end);
+            if (Str::starts(word, "--")) {
+                name = Str::tail(word, 2);
+            } else if (Str::starts(word, "-")) {
+                letter = Str::tail(word, 1);
+            } else if (Str::starts(word, "<")) {
+                value = Utf8::slice(word, 1, word.byteLength - 1);
+            }
+            at = end + 1;
+        }
+        return (name, letter, value);
+    }
+
+    /** A flag: `-v, --verbose`. */
+    pub static fn flag(spec : string, help : string) : Opt {
+        return new Opt(spec, help, Kind::Flag, "", "");
+    }
+
+    /** An option holding text; `fallback` is what it is when unset ("" for no default). */
+    pub static fn text(spec : string, help : string, fallback : string) : Opt {
+        return new Opt(spec, help, Kind::Text, fallback, "");
+    }
+
+    /** An option holding a whole number. */
+    pub static fn integer(spec : string, help : string, fallback : string) : Opt {
+        return new Opt(spec, help, Kind::Int, fallback, "");
+    }
+
+    /** An option holding a number with a fraction. */
+    pub static fn number(spec : string, help : string, fallback : string) : Opt {
+        return new Opt(spec, help, Kind::Float, fallback, "");
+    }
+
+    /** An option holding a path. */
+    pub static fn path(spec : string, help : string, fallback : string) : Opt {
+        return new Opt(spec, help, Kind::Path, fallback, "");
+    }
+
+    /** An option holding one of the words in `choices`, joined by `|`: `"text|json|csv"`. */
+    pub static fn choice(spec : string, help : string, choices : string, fallback : string) : Opt {
+        return new Opt(spec, help, Kind::Choice, fallback, choices);
+    }
+
+    /** An option that may be given again and again: `-I dir -I dir`. */
+    pub static fn many(spec : string, help : string) : Opt {
+        let o : Opt = new Opt(spec, help, Kind::Text, "", "");
+        o.repeatable = true;
+        return o;
+    }
+
+    /** Whether it carries a value. */
+    pub fn takesValue(self) : bool {
+        return self.kind != Kind::Flag;
+    }
+
+    /** The declaration as `--help` writes it: `-j, --jobs <n>`. */
+    pub fn label(self) : string {
+        let sb : StringBuilder = new StringBuilder();
+        if (self.letter != "") {
+            sb.append("-" + self.letter);
+            if (self.name != "") {
+                sb.append(", ");
+            }
+        } else {
+            sb.append("    ");
+        }
+        if (self.name != "") {
+            sb.append("--" + self.name);
+        }
+        if (self.takesValue()) {
+            sb.append(" <" + self.value + ">");
+        }
+        return sb.toString();
+    }
+
+    /** The accepted words of a `Choice`, in order. */
+    pub fn words(self) : Values<string> {
+        let out : Values<string> = new Values<string>();
+        let mut at : i64 = 0;
+        while (at <= self.choices.byteLength && self.choices != "") {
+            let mut end : i64 = at;
+            while (end < self.choices.byteLength && self.choices.byteAt(end) != 124) {
+                end = end + 1;
+            }
+            out.add(Utf8::slice(self.choices, at, end));
+            at = end + 1;
+        }
+        return out;
+    }
+
+    /** What is accepted, in a sentence: "a whole number", "one of text, json, csv". */
+    pub fn expects(self) : string {
+        if (self.kind != Kind::Choice) {
+            return self.kind.expects();
+        }
+        let sb : StringBuilder = new StringBuilder();
+        sb.append("one of ");
+        let all : Values<string> = self.words();
+        for (i of 0..all.size()) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(all.at(i));
+        }
+        return sb.toString();
+    }
+
+    /** Whether `v` is a value this option accepts. */
+    pub fn accepts(self, v : string) : bool {
+        return match self.kind {
+            Kind::Flag => false,
+            Kind::Text => true,
+            Kind::Path => true,
+            Kind::Int => Opt::isInt(v),
+            Kind::Float => Opt::isFloat(v),
+            Kind::Choice => self.hasWord(v),
+        };
+    }
+
+    static fn isInt(v : string) : bool {
+        let (ok, n) = Str::toInt(v);
+        return ok;
+    }
+
+    static fn isFloat(v : string) : bool {
+        let (ok, x) = Str::toFloat(v);
+        return ok;
+    }
+
+    /** Whether `v` is one of the choices. */
+    fn hasWord(self, v : string) : bool {
+        let all : Values<string> = self.words();
+        for (i of 0..all.size()) {
+            if (all.at(i) == v) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A separate object with the same declaration. */
+    pub fn copy(self) : Opt {
+        let o : Opt = new Opt("", self.help, self.kind, self.fallback, self.choices);
+        o.name = self.name;
+        o.letter = self.letter;
+        o.value = self.value;
+        o.repeatable = self.repeatable;
+        o.hidden = self.hidden;
+        return o;
+    }
+}
+
+/** A positional argument. */
+pub class Arg : Copy<Arg> {
+    /** Its name in the usage line. */
+    pub name     : string;
+
+    /** The sentence `--help` shows beside it. */
+    pub help     : string;
+
+    /** Whether the command fails without it. */
+    pub needed   : bool;
+
+    /** Whether it takes all that remain (`<file>...`); only the last may. */
+    pub variadic : bool;
+
+    constructor(name : string, help : string, needed : bool, variadic : bool) {
+        self.name = name;
+        self.help = help;
+        self.needed = needed;
+        self.variadic = variadic;
+    }
+
+    /** One that must be given. */
+    pub static fn required(name : string, help : string) : Arg {
+        return new Arg(name, help, true, false);
+    }
+
+    /** One that may be left out. */
+    pub static fn optional(name : string, help : string) : Arg {
+        return new Arg(name, help, false, false);
+    }
+
+    /** Zero or more, the last of the line. */
+    pub static fn rest(name : string, help : string) : Arg {
+        return new Arg(name, help, false, true);
+    }
+
+    /** How the usage line writes it: `<root>`, `[root]`, `[files...]`. */
+    pub fn usage(self) : string {
+        if (self.variadic) {
+            return "[" + self.name + "...]";
+        }
+        return self.needed ? "<" + self.name + ">" : "[" + self.name + "]";
+    }
+
+    /** A separate object with the same declaration. */
+    pub fn copy(self) : Arg {
+        return new Arg(self.name, self.help, self.needed, self.variadic);
+    }
+}
+
+/** A command: a program, or one of its subcommands. */
+pub class Command : Copy<Command> {
+    /** What it is typed as. */
+    pub name     : string;
+
+    /** One sentence on what it does. */
+    pub about    : string;
+
+    /** Its version; empty for none. Only the root's is shown by `--version`. */
+    pub ver      : string = "";
+
+    /** Other names it answers to. */
+    pub aliases  : Values<string>;
+
+    /** Its options. */
+    pub opts     : List<Opt>;
+
+    /** Its positional arguments, in order. */
+    pub args     : List<Arg>;
+
+    /** Its subcommands. */
+    pub subs     : List<Command>;
+
+    /** The example lines `--help` ends with, and what each does. */
+    pub lines    : Values<string>;
+    pub notes    : Values<string>;
+
+    /** Whether `--help` leaves it out of its parent's list. */
+    pub hidden   : bool = false;
+
+    constructor(name : string, about : string) {
+        self.name = name;
+        self.about = about;
+        self.aliases = new Values<string>();
+        self.opts = new List<Opt>();
+        self.args = new List<Arg>();
+        self.subs = new List<Command>();
+        self.lines = new Values<string>();
+        self.notes = new Values<string>();
+    }
+
+    /** A command named `name`, which `about` describes. */
+    pub static fn create(name : string, about : string) : Command {
+        return new Command(name, about);
+    }
+
+    /** Add an option. */
+    pub fn add(mut self, own o : Opt) : void {
+        self.opts.add(o);
+    }
+
+    /** Add a positional argument. */
+    pub fn arg(mut self, own a : Arg) : void {
+        self.args.add(a);
+    }
+
+    /** Add a subcommand. */
+    pub fn sub(mut self, own c : Command) : void {
+        self.subs.add(c);
+    }
+
+    /** Let it answer to another name too. */
+    pub fn alias(mut self, name : string) : void {
+        self.aliases.add(name);
+    }
+
+    /** Give it a version. */
+    pub fn version(mut self, v : string) : void {
+        self.ver = v;
+    }
+
+    /** Add an example: the line as typed, and what it does. */
+    pub fn example(mut self, line : string, note : string) : void {
+        self.lines.add(line);
+        self.notes.add(note);
+    }
+
+    /** The subcommand answering to `word` (by name or alias), or -1. */
+    pub fn findSub(self, word : string) : i32 {
+        for (i of 0..self.subs.size()) {
+            let c : Command = self.subs.at(i);
+            if (c.name == word || c.answers(word)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Whether `word` is one of its aliases. */
+    pub fn answers(self, word : string) : bool {
+        for (i of 0..self.aliases.size()) {
+            if (self.aliases.at(i) == word) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The option whose long name is `name`, or -1. */
+    pub fn findLong(self, name : string) : i32 {
+        for (i of 0..self.opts.size()) {
+            if (self.opts.at(i).name == name) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** The option whose short name is `letter`, or -1. */
+    pub fn findShort(self, letter : string) : i32 {
+        for (i of 0..self.opts.size()) {
+            if (self.opts.at(i).letter == letter) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Every name the subcommands answer to, for suggestions. */
+    pub fn subNames(self) : Values<string> {
+        let out : Values<string> = new Values<string>();
+        for (i of 0..self.subs.size()) {
+            out.add(self.subs.at(i).name);
+            let c : Command = self.subs.at(i);
+            for (k of 0..c.aliases.size()) {
+                out.add(c.aliases.at(k));
+            }
+        }
+        return out;
+    }
+
+    /** A separate object with the same declaration, subcommands included. */
+    pub fn copy(self) : Command {
+        let c : Command = new Command(self.name, self.about);
+        c.ver = self.ver;
+        c.hidden = self.hidden;
+        for (i of 0..self.aliases.size()) {
+            c.aliases.add(self.aliases.at(i));
+        }
+        for (i of 0..self.opts.size()) {
+            c.opts.add(self.opts.at(i).copy());
+        }
+        for (i of 0..self.args.size()) {
+            c.args.add(self.args.at(i).copy());
+        }
+        for (i of 0..self.subs.size()) {
+            c.subs.add(self.subs.at(i).copy());
+        }
+        for (i of 0..self.lines.size()) {
+            c.lines.add(self.lines.at(i));
+            c.notes.add(self.notes.at(i));
+        }
+        return c;
+    }
+}

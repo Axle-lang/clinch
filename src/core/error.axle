@@ -1,0 +1,207 @@
+// error — what a command line can get wrong, and the status the process leaves with.
+//
+// A mistake of the person typing the command is a `UsageError`: it carries the words to show them
+// (`message`), a `hint` when the program can guess what was meant, and the exit status 2, which is what
+// the shells and `getopt` have always used for it. A fault of the setting the program runs in — a
+// config file that does not parse — is a `ConfigError`, status 78. Both are `CliError`s, so a program
+// that only wants "this failed, say so and leave" catches one type and reads `code`.
+//
+//   UsageError       the command line is not one this program accepts
+//     UnknownCommand   a subcommand that does not exist: `suggestion` says the nearest that does
+//     UnknownOption    an option that does not exist: the same
+//     MissingValue     an option that takes a value was last, or was followed by nothing
+//     MissingArgument  a required positional is absent
+//     UnexpectedArgument  one positional too many
+//     InvalidValue     a value of the wrong kind: `expected` says what would have done
+//   ConfigError      a file, an environment variable or a default that cannot be used
+
+/** The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case. */
+pub class Exit {
+    /** The work was done. */
+    pub static fn ok() : i32 {
+        return 0;
+    }
+
+    /** The program ran and found nothing wrong, except what it was asked to report (as `grep` does). */
+    pub static fn failed() : i32 {
+        return 1;
+    }
+
+    /** The command line was not understood. */
+    pub static fn usage() : i32 {
+        return 2;
+    }
+
+    /** The data given was wrong in its content. */
+    pub static fn data() : i32 {
+        return 65;
+    }
+
+    /** An input that was named does not exist or cannot be read. */
+    pub static fn noInput() : i32 {
+        return 66;
+    }
+
+    /** A service the program needs is not available. */
+    pub static fn unavailable() : i32 {
+        return 69;
+    }
+
+    /** An internal fault. */
+    pub static fn software() : i32 {
+        return 70;
+    }
+
+    /** The system failed an input or output operation. */
+    pub static fn io() : i32 {
+        return 74;
+    }
+
+    /** A permission is missing. */
+    pub static fn noPermission() : i32 {
+        return 77;
+    }
+
+    /** A configuration cannot be used. */
+    pub static fn config() : i32 {
+        return 78;
+    }
+
+    /** The person cancelled with Ctrl-C: 128 plus the signal's number, as a shell reports it. */
+    pub static fn interrupted() : i32 {
+        return 130;
+    }
+
+    /** The process was asked to stop with SIGTERM. */
+    pub static fn terminated() : i32 {
+        return 143;
+    }
+}
+
+/** Everything this library throws. */
+pub exception CliError {
+    /** The status the process should leave with. */
+    pub code : i32;
+
+    constructor(message : string, code : i32) {
+        super(message);
+        self.code = code;
+    }
+}
+
+/** The command line is not one the program accepts. */
+pub exception UsageError : CliError {
+    /** What the program can guess was meant ("did you mean `--verbose`?"); empty when it cannot. */
+    pub hint : string;
+
+    constructor(message : string, hint : string) {
+        super(message, 2);
+        self.hint = hint;
+    }
+}
+
+/** A subcommand that does not exist. */
+pub exception UnknownCommand : UsageError {
+    /** What was typed. */
+    pub name       : string;
+
+    /** The nearest command that does exist; empty when none is near. */
+    pub suggestion : string;
+
+    constructor(name : string, suggestion : string) {
+        super(
+            "unknown command `" + name + "`",
+            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+        );
+        self.name = name;
+        self.suggestion = suggestion;
+    }
+}
+
+/** An option that does not exist. */
+pub exception UnknownOption : UsageError {
+    /** What was typed, with its dashes. */
+    pub name       : string;
+
+    /** The nearest option that does exist, with its dashes; empty when none is near. */
+    pub suggestion : string;
+
+    constructor(name : string, suggestion : string) {
+        super(
+            "unknown option `" + name + "`",
+            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+        );
+        self.name = name;
+        self.suggestion = suggestion;
+    }
+}
+
+/** An option that takes a value was given none. */
+pub exception MissingValue : UsageError {
+    /** The option, with its dashes. */
+    pub option : string;
+
+    constructor(option : string, expects : string) {
+        super("option `" + option + "` needs a value", "give it as `" + option + " <" + expects + ">`");
+        self.option = option;
+    }
+}
+
+/** A required positional argument is absent. */
+pub exception MissingArgument : UsageError {
+    /** Its name in the usage line. */
+    pub argument : string;
+
+    constructor(argument : string) {
+        super("missing required argument <" + argument + ">", "");
+        self.argument = argument;
+    }
+}
+
+/** More positional arguments than the command takes. */
+pub exception UnexpectedArgument : UsageError {
+    /** The first one that does not belong. */
+    pub value : string;
+
+    constructor(value : string) {
+        super("unexpected argument `" + value + "`", "");
+        self.value = value;
+    }
+}
+
+/** A value of the wrong kind or outside the choices. */
+pub exception InvalidValue : UsageError {
+    /** The option or argument it was given to, as the person typed it. */
+    pub option     : string;
+
+    /** The value. */
+    pub value      : string;
+
+    /** What would have been accepted: "a whole number", "one of text, json, csv". */
+    pub expected   : string;
+
+    /** The nearest accepted word, when the value was a near miss of one; empty otherwise. */
+    pub suggestion : string;
+
+    constructor(option : string, value : string, expected : string, suggestion : string) {
+        super(
+            "invalid value `" + value + "` for `" + option + "`: expected " + expected,
+            suggestion == "" ? "" : "did you mean `" + suggestion + "`?"
+        );
+        self.option = option;
+        self.value = value;
+        self.expected = expected;
+        self.suggestion = suggestion;
+    }
+}
+
+/** A configuration that cannot be used. */
+pub exception ConfigError : CliError {
+    /** Where it came from: a file name, "environment", "defaults". */
+    pub source : string;
+
+    constructor(source : string, message : string) {
+        super(source + ": " + message, 78);
+        self.source = source;
+    }
+}
