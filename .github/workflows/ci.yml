@@ -97,7 +97,10 @@ jobs:
         run: |
           ./target/hello.exe serve --port 9000 site
           ./target/hello.exe --version
-          ./target/hello.exe serve --prot 1 site; if ($LASTEXITCODE -ne 2) { throw "expected status 2, got $LASTEXITCODE" }
+          ./target/hello.exe serve --prot 1 site
+          # The usage error is the expected outcome: status 2. PowerShell would exit with that status.
+          if ($LASTEXITCODE -ne 2) { throw "expected status 2, got $LASTEXITCODE" }
+          exit 0
 
       - name: The port this build resolves
         run: axle ports
