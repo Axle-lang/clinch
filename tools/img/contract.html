@@ -5,7 +5,11 @@
 .col .t { font-size: 28px; font-weight: 700; margin-bottom: 6px } .col p { color:#b9b6d6; font-size:18px; line-height:1.5; margin: 8px 0 18px }
 .tree { font-size: 18px; line-height: 1.75; white-space: pre; color:#d8d5ee }
 .tree .b { color:#9db8ff } .tree .o { color:#ff9d7a } .tree .c { color:#7f7ba8 } .tree .y { color:#f0c95a }
-.chain { display:flex; flex-direction:column; gap: 10px; margin-top: 6px }
+.ladder { display:flex; flex-direction:column; gap: 10px; margin-top: 6px }
+.rung { display:grid; grid-template-columns: 1.1fr 1.5fr .8fr; align-items:center; gap: 14px; padding: 14px 18px; border-radius: 14px; background:#12121c; border:1px solid #2c2c44; font-size: 17px }
+.rung .where { font-weight: 700; font-size: 17px } .rung .where i { font-weight: 500; color:#8683a8; font-style: normal; font-size: 14px }
+.rung .what { color:#cfcce8; font-size: 16px; white-space: nowrap } .rung .what b { color:#f0c95a } .rung .res { color:#7fd6a0; font-size: 16px; text-align: right }
+.rung.on { border-color:#5B4BE1 } .rung.todo { opacity:.55; border-style:dashed }
 .step { display:flex; align-items:center; gap:16px; padding: 14px 18px; border-radius: 14px; background:#12121c; border:1px solid #2c2c44; font-size: 20px }
 .step b { width: 190px; font-size: 20px } .step span { color:#b9b6d6; font-size: 16px }
 .step.on { border-color:#5B4BE1 } .step.todo { opacity:.5; border-style:dashed }
@@ -29,13 +33,13 @@
 
 <span class="y">EXIT_OK</span> 0   <span class="y">USAGE</span> 2   <span class="y">DATA</span> 65   <span class="y">NO_INPUT</span> 66   <span class="y">UNAVAILABLE</span> 69
 <span class="y">SOFTWARE</span> 70   <span class="y">IO</span> 74   <span class="y">NO_PERMISSION</span> 77   <span class="y">CONFIG</span> 78   <span class="y">INTERRUPTED</span> 130</div></div>
- <div class="card col"><div class="t">Who wins</div>
-  <p>Each answer keeps its <span class="mono">Source</span>, so “why is this 4?” has an answer: <span class="mono">parsed.source("jobs")</span>.</p>
-  <div class="chain">
-   <div class="step on"><div class="rank">1</div><b>command line</b><span>Source::Argv · parsed and checked</span></div>
-   <div class="step todo"><div class="rank">2</div><b>environment</b><span>Source::Env · reader planned</span></div>
-   <div class="step todo"><div class="rank">3</div><b>config file</b><span>Source::Config · reader planned</span></div>
-   <div class="step on"><div class="rank">4</div><b>default</b><span>Source::Default · declared with the option</span></div>
+ <div class="card col"><div class="t">When an option is set in several places</div>
+  <p>One option, <span class="mono">port</span>, set four ways. <b>The strongest place answers</b>, and <span class="mono">parsed.source("port")</span> says which one it was.</p>
+  <div class="ladder">
+   <div class="rung on"><div class="where">1 · the command line</div><div class="what mono">tool serve <b>--port 80</b></div><div class="res mono">port = 80</div></div>
+   <div class="rung todo"><div class="where">2 · the environment <i>(planned)</i></div><div class="what mono">TOOL_PORT=<b>9000</b></div><div class="res mono">port = 9000</div></div>
+   <div class="rung todo"><div class="where">3 · a config file <i>(planned)</i></div><div class="what mono">port = <b>7000</b></div><div class="res mono">port = 7000</div></div>
+   <div class="rung on"><div class="where">4 · the default</div><div class="what mono">Opt::integer(…, <b>"8080"</b>)</div><div class="res mono">port = 8080</div></div>
   </div>
-  <div class="note">The order is implemented and tested today (<span class="mono">Parsed::offer</span> keeps the higher source); the readers that feed levels 2 and 3 are the next slices.</div></div>
+  <div class="note">The first place, from the top, that sets the option gives its value. With <span class="mono" style="white-space:nowrap">--port 80</span> it is <b>80</b>; without it, <b>9000</b>; then <b>7000</b>; then the default, <b>8080</b>. The environment and the file are not read yet; the order is written and checked.</div></div>
 </div>
