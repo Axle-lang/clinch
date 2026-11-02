@@ -34,8 +34,8 @@
 > [gesso](https://github.com/Axle-lang/gesso) are what a painter works with; clinch is the nail — what fastens
 > the arguments of a program to the one place that says what they are.
 
-> **Status.** The declaration, the parser, the suggestions and the errors are written and checked. `--help`,
-> configuration files, environment variables, completion scripts, JSON/CSV output, prompts and signal handling
+> **Status.** The declaration, the parser, the suggestions, the errors and `--help` are written and checked.
+> Configuration files, environment variables, completion scripts, JSON/CSV output, prompts and signal handling
 > are not: see the [roadmap](doc/ROADMAP.md).
 
 ## 📊 At a glance
@@ -49,6 +49,7 @@
 | **Values** | Checked against the kind the option declared — whole number, number, text, path, one of a set of words — and refused with what was expected |
 | **Mistakes** | A `UsageError` carries the status to leave with, and is one of six reasons. When the word is a near miss of a real one it says so: ``did you mean `--port`?`` |
 | **Provenance** | Every answer remembers whether it came from the command line, the environment, a file or the default; a lower source never replaces a higher one |
+| **Help** | `parsed.help()` writes `--help` from the declaration: usage line, arguments, commands, options with their default and choices, the options of the commands above, examples; `parsed.versionLine()` writes `--version` |
 | **Statuses** | `EXIT_USAGE` is 2, `EXIT_CONFIG` 78, `EXIT_INTERRUPTED` 130, and the rest of `sysexits.h`, as `pub const`s: `return EXIT_USAGE;` is all a `main` writes |
 
 ## 🚀 Quick start
@@ -83,6 +84,10 @@ fn main() : i32 {
             println(parsed.versionLine());              // hello 0.1.0
             return 0;
         }
+        if (parsed.helpAsked) {
+            println(parsed.help());                     // written from the declaration above
+            return 0;
+        }
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
         return 0;
     } catch e : UsageError {
@@ -100,6 +105,20 @@ error: unknown option `--prot`
   did you mean `--port`?
 $ echo $?
 2
+$ hello serve --help
+Pretend to serve a folder
+
+Usage: hello serve [OPTIONS] <root>
+
+Arguments:
+  <root>          Folder to serve
+
+Options:
+  -p, --port <n>  Port to listen on [default: 8080]
+  -h, --help      Print help
+
+Options of the commands above:
+  -v, --verbose   Say more
 ```
 
 `parseProcess(root)` reads the process's own command line. `parseLine(root, words)` is the same read over an
@@ -140,6 +159,7 @@ lower source never replaces a higher one — is written and checked (`Parsed::of
 |---|---|
 | `src/spec.axle` | `Command`, `Opt`, `Arg`, `Kind` — the declaration |
 | `src/parse.axle` | `Parsed`, `Source`, `parseLine`, `readLine` |
+| `src/help.axle` | `helpText` — what `parsed.help()` prints |
 | `src/args.axle` | `parseProcess`, `readProcess`, `processWords` — the process's own command line |
 | `src/error.axle` | `CliError`, `UsageError` and its six reasons, the `EXIT_*` statuses |
 | `src/suggest.axle` | `editDistance`, `nearestWord` — the "did you mean" |

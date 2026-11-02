@@ -3,7 +3,7 @@
 Each slice is pushed on its own, with its checks.
 
 1. **Declaration and parsing** — `Command`, `Opt`, `Arg`, `parseLine`, `parseProcess`, suggestions, errors, statuses. *Done.*
-2. **Help and version** — `--help` and `--version` written from the declaration: usage, aligned columns, examples.
+2. **Help and version** — `--help` and `--version` written from the declaration: usage, aligned columns, examples. *Done.*
 3. **Configuration** — a TOML subset and JSON, `APP_*` environment variables, the order argv > env > file > default.
 4. **Output** — text, JSON and CSV from one description of the rows.
 5. **Completion** — Bash, Zsh, Fish and PowerShell scripts generated from the declaration.

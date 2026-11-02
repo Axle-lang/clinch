@@ -12,6 +12,7 @@ fn spec() : Command {
         .arg(Arg::required("root", "Folder to serve"));
     return Command::create("hello", "A tiny server that serves nothing")
         .version("0.1.0")
+        .example("hello serve site", "serve the folder on the default port")
         .add(Opt::flag("-v, --verbose", "Say more"))
         .sub(serve);
 }
@@ -23,9 +24,8 @@ fn main() : i32 {
             println(parsed.versionLine());
             return 0;
         }
-        // The help text is written by hand until the library writes it from the declaration.
         if (parsed.helpAsked) {
-            println("usage: hello [--verbose] serve [--port <n>] <root>");
+            println(parsed.help());
             return 0;
         }
         println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));

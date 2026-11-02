@@ -3,6 +3,7 @@
 // This file names the modules a dependant can import from: `use clinch::{Command, Opt, Arg, parseProcess};`.
 use crate::args::{parseProcess, processWords, readProcess};
 use crate::error::{CliError, InvalidValue, MissingArgument, MissingValue, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError, EXIT_CONFIG, EXIT_DATA, EXIT_FAILED, EXIT_INTERRUPTED, EXIT_IO, EXIT_NO_INPUT, EXIT_NO_PERMISSION, EXIT_OK, EXIT_SOFTWARE, EXIT_TERMINATED, EXIT_UNAVAILABLE, EXIT_USAGE};
+use crate::help::helpText;
 use crate::list::{Copy, List, Values};
 use crate::parse::{Parsed, Source, parseLine, readLine};
 use crate::spec::{Arg, Command, Kind, Opt};

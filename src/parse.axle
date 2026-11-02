@@ -18,6 +18,7 @@
 
 use crate::error::{InvalidValue, MissingArgument, MissingValue, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError};
 use std::collections::ArrayList;
+use crate::help::helpText;
 use crate::list::{List, Values};
 use crate::spec::{Arg, Command, Kind, Opt};
 use crate::suggest::nearestWord;
@@ -94,6 +95,11 @@ pub class Parsed {
             out = i == 0 ? self.levels.at(i).name : out + " " + self.levels.at(i).name;
         }
         return out;
+    }
+
+    /** What `--help` prints for the command the line reached. */
+    pub fn help(self) : string {
+        return helpText(self.levels, self.path());
     }
 
     /** What `--version` prints: the program's name and its version, `tool 1.2.0`. */

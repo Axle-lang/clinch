@@ -226,6 +226,22 @@ fn sources(c : Checks) : void ! UsageError {
     );
 }
 
+fn helps(c : Checks) : void ! UsageError {
+    let sub : string = read("serve --help").help();
+    c.that("help starts with what the command is", sub.startsWith("Run the server\n\nUsage: tool serve [OPTIONS] <root> [extra...]\n"));
+    c.that("help lists the arguments", sub.contains("\nArguments:\n  <root>               Folder\n  [extra...]           More\n"));
+    c.that("help gives an option's default", sub.contains("  -p, --port <n>       Port [default: 8080]\n"));
+    c.that("help gives a short-less option's alignment", sub.contains("      --format <fmt>   Output [text|json|csv, default: text]\n"));
+    c.that("help lists -h", sub.contains("  -h, --help           Print help\n"));
+    c.that("help does not offer -V below the root", !sub.contains("--version"));
+    c.that("help lists the options of the commands above", sub.contains("\nOptions of the commands above:\n  -v, --verbose        More output\n"));
+    let root : string = read("--help").help();
+    c.that("the root's help is a usage with a command", root.contains("Usage: tool [OPTIONS] <COMMAND>\n"));
+    c.that("the root's help lists the commands with their aliases", root.contains("\nCommands:\n  serve, run          Run the server\n  list                List things\n"));
+    c.that("the root's help offers -V", root.contains("  -V, --version       Print version\n"));
+    c.that("help of a command without examples has none", !root.contains("Examples:"));
+}
+
 fn statuses(c : Checks) : void {
     c.that(
         "the statuses follow sysexits",
@@ -247,6 +263,7 @@ fn main() : i32 {
         mistakes(c);
         sources(c);
         statuses(c);
+        helps(c);
     } catch e : UsageError {
         println("FAIL a line that should read was refused: " + e.message);
         return 1;

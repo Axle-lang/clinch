@@ -1,0 +1,151 @@
+// help — `--help` and `--version`, written from the declaration.
+//
+//     println(parsed.help());
+//
+// The text is made from what the program already declared, so it cannot disagree with what the parser
+// accepts: the usage line, the arguments, the commands, the options (with their default and their choices),
+// the options of the commands above, and the examples.
+
+use crate::list::List;
+use crate::spec::{Command, Opt};
+use std::collections::ArrayList;
+use std::text::StringBuilder;
+
+/** The note after an option: its choices and its default, `[text|json|csv, default: text]`. */
+fn details(o : Opt) : string {
+    let mut notes : string = "";
+    if (o.choices != "") {
+        notes = o.choices;
+    }
+    if (o.fallback != "") {
+        notes = notes == "" ? "default: " + o.fallback : notes + ", default: " + o.fallback;
+    }
+    return notes == "" ? "" : " [" + notes + "]";
+}
+
+/** `serve, run`: a command's name and the names it answers to. */
+fn names(c : Command) : string {
+    let mut out : string = c.name;
+    for (alias of c.aliases) {
+        out = out + ", " + alias;
+    }
+    return out;
+}
+
+/** One section: a title, then its rows, the left column padded to `width`. */
+fn section(
+    sb : StringBuilder,
+    title : string,
+    lefts : ArrayList<string>,
+    rights : ArrayList<string>,
+    width : i32
+) : void {
+    if (lefts.size() == 0) {
+        return;
+    }
+    sb.append("\n" + title + ":\n");
+    for (i of 0..lefts.size()) {
+        let left : string = lefts.get(i) ?? "";
+        let right : string = rights.get(i) ?? "";
+        sb.append("  " + left.padEnd(width, 32) + right + "\n");
+    }
+}
+
+/** The options a command lists: its own, then `-h`, then `-V` when the program has a version. */
+fn optionRows(levels : List<Command>, lefts : ArrayList<string>, rights : ArrayList<string>) : void {
+    let c : Command = levels.at(levels.size() - 1);
+    for (i of 0..c.opts.size()) {
+        let o : Opt = c.opts.at(i);
+        if (!o.hidden) {
+            lefts.add(o.label());
+            rights.add(o.help + details(o));
+        }
+    }
+    lefts.add("-h, --help");
+    rights.add("Print help");
+    if (levels.size() == 1 && c.ver != "") {
+        lefts.add("-V, --version");
+        rights.add("Print version");
+    }
+}
+
+/** The options of the commands above this one: they work here too. */
+fn inheritedRows(levels : List<Command>, lefts : ArrayList<string>, rights : ArrayList<string>) : void {
+    for (l of 0..levels.size() - 1) {
+        let c : Command = levels.at(l);
+        for (i of 0..c.opts.size()) {
+            let o : Opt = c.opts.at(i);
+            if (!o.hidden) {
+                lefts.add(o.label());
+                rights.add(o.help + details(o));
+            }
+        }
+    }
+}
+
+/** The widest of `rows`, and of `floor`. */
+fn widest(rows : ArrayList<string>, floor : i32) : i32 {
+    let mut w : i32 = floor;
+    for (row of rows) {
+        w = row.length > w ? row.length : w;
+    }
+    return w;
+}
+
+/**
+ * The help of the command that `levels` ends with, from the root down; `path` is how it is typed (`tool serve`).
+ */
+pub fn helpText(levels : List<Command>, path : string) : string {
+    let c : Command = levels.at(levels.size() - 1);
+    let sb : StringBuilder = new StringBuilder();
+    if (c.about != "") {
+        sb.append(c.about + "\n\n");
+    }
+    let mut usage : string = "Usage: " + path + " [OPTIONS]";
+    if (c.subs.size() > 0) {
+        usage = usage + " <COMMAND>";
+    }
+    for (i of 0..c.args.size()) {
+        usage = usage + " " + c.args.at(i).usage();
+    }
+    sb.append(usage + "\n");
+
+    let argLefts : ArrayList<string> = new ArrayList<string>();
+    let argRights : ArrayList<string> = new ArrayList<string>();
+    for (i of 0..c.args.size()) {
+        argLefts.add(c.args.at(i).usage());
+        argRights.add(c.args.at(i).help);
+    }
+    let cmdLefts : ArrayList<string> = new ArrayList<string>();
+    let cmdRights : ArrayList<string> = new ArrayList<string>();
+    for (i of 0..c.subs.size()) {
+        if (!c.subs.at(i).hidden) {
+            cmdLefts.add(names(c.subs.at(i)));
+            cmdRights.add(c.subs.at(i).about);
+        }
+    }
+    let optLefts : ArrayList<string> = new ArrayList<string>();
+    let optRights : ArrayList<string> = new ArrayList<string>();
+    optionRows(levels, optLefts, optRights);
+    let inLefts : ArrayList<string> = new ArrayList<string>();
+    let inRights : ArrayList<string> = new ArrayList<string>();
+    inheritedRows(levels, inLefts, inRights);
+
+    let mut width : i32 = widest(argLefts, 0);
+    width = widest(cmdLefts, width);
+    width = widest(optLefts, width);
+    width = widest(inLefts, width) + 2;
+
+    section(sb, "Arguments", argLefts, argRights, width);
+    section(sb, "Commands", cmdLefts, cmdRights, width);
+    section(sb, "Options", optLefts, optRights, width);
+    section(sb, "Options of the commands above", inLefts, inRights, width);
+    if (c.lines.size() > 0) {
+        sb.append("\nExamples:\n");
+        for (i of 0..c.lines.size()) {
+            sb.append("  " + (c.lines.get(i) ?? "") + "\n");
+            sb.append("      " + (c.notes.get(i) ?? "") + "\n");
+        }
+    }
+    return sb.toString();
+}

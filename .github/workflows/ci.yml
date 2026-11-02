@@ -41,6 +41,7 @@ jobs:
           axle build
           ./target/hello serve --port 9000 site
           ./target/hello --version
+          ./target/hello serve --help
           status=0; ./target/hello serve --prot 1 site || status=$?
           test "$status" = 2
 
@@ -79,6 +80,7 @@ jobs:
           axle build
           ./target/hello.exe serve --port 9000 site
           ./target/hello.exe --version
+          ./target/hello.exe serve --help
           ./target/hello.exe serve --prot 1 site
           # The usage error is the expected outcome: status 2.
           if ($LASTEXITCODE -ne 2) { throw "expected status 2, got $LASTEXITCODE" }
