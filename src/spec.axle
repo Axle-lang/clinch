@@ -14,8 +14,9 @@
 // value. The long name is what the program reads it by (`parsed.integer("port")`), the config file
 // and the environment too.
 
-use crate::core::list::{Copy, Values};
-use crate::core::text::{copyOf, parseFloat, parseInt, startsWith, tailFrom, utf8Slice};
+use std::collections::ArrayList;
+use crate::list::{Copy, Values};
+use crate::text::{realNumber, slice, sliceFrom, wholeNumber};
 use std::text::StringBuilder;
 
 /** What an option's value must be. */
@@ -65,13 +66,13 @@ pub enum Kind : i32 {
 
 /** Whether `v` reads as a whole number. */
 fn isWhole(v : string) : bool {
-    let (ok, n) = parseInt(v);
+    let (ok, n) = wholeNumber(v);
     return ok;
 }
 
 /** Whether `v` reads as a number. */
 fn isNumber(v : string) : bool {
-    let (ok, x) = parseFloat(v);
+    let (ok, x) = realNumber(v);
     return ok;
 }
 
@@ -110,18 +111,18 @@ pub struct Opt {
     /** An option as declared by `spec`, e.g. `-j, --jobs <n>`. */
     static fn declared(spec : string, help : string, kind : Kind, fallback : string, choices : string) : Opt {
         let (name, letter, value) = Opt::readSpec(spec);
-        let mut shown : string = copyOf(value);
+        let mut shown : string = value;
         if (kind != Kind::Flag && value == "") {
-            shown = copyOf(kind.word());
+            shown = kind.word();
         }
         return Opt {
-            name: copyOf(name),
-            letter: copyOf(letter),
+            name: name,
+            letter: letter,
             value: shown,
             kind: kind,
-            help: copyOf(help),
-            fallback: copyOf(fallback),
-            choices: copyOf(choices),
+            help: help,
+            fallback: fallback,
+            choices: choices,
             repeatable: false,
             hidden: false,
         };
@@ -132,21 +133,21 @@ pub struct Opt {
         let mut name : string = "";
         let mut letter : string = "";
         let mut value : string = "";
-        let mut at : i64 = 0;
-        while (at < spec.byteLength) {
-            let mut end : i64 = at;
-            while (end < spec.byteLength && spec.byteAt(end) != 32 && spec.byteAt(end) != 44) {
-                end = end + 1;
+        let mut word : string = "";
+        for (i of 0..spec.length + 1) {
+            let c : i32 = i < spec.length ? spec.charAt(i) : 32;
+            if (c != 32 && c != 44) {
+                word = word + slice(spec, i, i + 1);
+                continue;
             }
-            let word : string = utf8Slice(spec, at, end);
-            if (startsWith(word, "--")) {
-                name = tailFrom(word, 2);
-            } else if (startsWith(word, "-")) {
-                letter = tailFrom(word, 1);
-            } else if (startsWith(word, "<")) {
-                value = utf8Slice(word, 1, word.byteLength - 1);
+            if (word.startsWith("--")) {
+                name = sliceFrom(word, 2);
+            } else if (word.startsWith("-")) {
+                letter = sliceFrom(word, 1);
+            } else if (word.startsWith("<")) {
+                value = slice(word, 1, word.length - 1);
             }
-            at = end + 1;
+            word = "";
         }
         return (name, letter, value);
     }
@@ -214,17 +215,21 @@ pub struct Opt {
     }
 
     /** The accepted words of a `Choice`, in order. */
-    pub fn words(self) : Values<string> {
-        let out : Values<string> = new Values<string>();
-        let mut at : i64 = 0;
-        while (at <= self.choices.byteLength && self.choices != "") {
-            let mut end : i64 = at;
-            while (end < self.choices.byteLength && self.choices.byteAt(end) != 124) {
-                end = end + 1;
-            }
-            out.add(utf8Slice(self.choices, at, end));
-            at = end + 1;
+    pub fn words(self) : ArrayList<string> {
+        let out : ArrayList<string> = new ArrayList<string>();
+        if (self.choices == "") {
+            return out;
         }
+        let mut word : string = "";
+        for (i of 0..self.choices.length) {
+            if (self.choices.charAt(i) == 124) {
+                out.add(word);
+                word = "";
+            } else {
+                word = word + slice(self.choices, i, i + 1);
+            }
+        }
+        out.add(word);
         return out;
     }
 
@@ -235,12 +240,12 @@ pub struct Opt {
         }
         let sb : StringBuilder = new StringBuilder();
         sb.append("one of ");
-        let all : Values<string> = self.words();
+        let all : ArrayList<string> = self.words();
         for (i of 0..all.size()) {
             if (i > 0) {
                 sb.append(", ");
             }
-            sb.append(all.at(i));
+            sb.append((all.get(i) ?? ""));
         }
         return sb.toString();
     }
@@ -259,9 +264,9 @@ pub struct Opt {
 
     /** Whether `v` is one of the choices. */
     fn hasWord(self, v : string) : bool {
-        let all : Values<string> = self.words();
+        let all : ArrayList<string> = self.words();
         for (i of 0..all.size()) {
-            if (all.at(i) == v) {
+            if ((all.get(i) ?? "") == v) {
                 return true;
             }
         }
@@ -285,17 +290,17 @@ pub struct Arg {
 
     /** One that must be given. */
     pub static fn required(name : string, help : string) : Arg {
-        return Arg { name: copyOf(name), help: copyOf(help), needed: true, variadic: false };
+        return Arg { name: name, help: help, needed: true, variadic: false };
     }
 
     /** One that may be left out. */
     pub static fn optional(name : string, help : string) : Arg {
-        return Arg { name: copyOf(name), help: copyOf(help), needed: false, variadic: false };
+        return Arg { name: name, help: help, needed: false, variadic: false };
     }
 
     /** Zero or more, the last of the line. */
     pub static fn rest(name : string, help : string) : Arg {
-        return Arg { name: copyOf(name), help: copyOf(help), needed: false, variadic: true };
+        return Arg { name: name, help: help, needed: false, variadic: true };
     }
 
     /** How the usage line writes it: `<root>`, `[root]`, `[files...]`. */
@@ -350,42 +355,42 @@ pub class Commands {
 /** A command: a program, or one of its subcommands. */
 pub class Command : Copy<Command> {
     /** What it is typed as. */
-    pub name     : string;
+    pub name    : string;
 
     /** One sentence on what it does. */
-    pub about    : string;
+    pub about   : string;
 
     /** Its version; empty for none. Only the root's is shown by `--version`. */
-    pub ver      : string = "";
+    pub ver     : string = "";
 
     /** Other names it answers to. */
-    pub aliases  : Values<string>;
+    pub aliases : ArrayList<string>;
 
     /** Its options. */
-    pub opts     : Values<Opt>;
+    pub opts    : Values<Opt>;
 
     /** Its positional arguments, in order. */
-    pub args     : Values<Arg>;
+    pub args    : Values<Arg>;
 
     /** Its subcommands. */
-    pub subs     : Commands;
+    pub subs    : Commands;
 
     /** The example lines `--help` ends with, and what each does. */
-    pub lines    : Values<string>;
-    pub notes    : Values<string>;
+    pub lines   : ArrayList<string>;
+    pub notes   : ArrayList<string>;
 
     /** Whether `--help` leaves it out of its parent's list. */
-    pub hidden   : bool = false;
+    pub hidden  : bool = false;
 
     constructor(name : string, about : string) {
-        self.name = copyOf(name);
-        self.about = copyOf(about);
-        self.aliases = new Values<string>();
+        self.name = name;
+        self.about = about;
+        self.aliases = new ArrayList<string>();
         self.opts = new Values<Opt>();
         self.args = new Values<Arg>();
         self.subs = new Commands();
-        self.lines = new Values<string>();
-        self.notes = new Values<string>();
+        self.lines = new ArrayList<string>();
+        self.notes = new ArrayList<string>();
     }
 
     /** A command named `name`, which `about` describes. */
@@ -413,7 +418,7 @@ pub class Command : Copy<Command> {
 
     /** Let it answer to another name too. */
     pub fn alias(mut self, name : string) : Command {
-        self.aliases.add(copyOf(name));
+        self.aliases.add(name);
         return self;
     }
 
@@ -425,8 +430,8 @@ pub class Command : Copy<Command> {
 
     /** Add an example: the line as typed, and what it does. */
     pub fn example(mut self, line : string, note : string) : Command {
-        self.lines.add(copyOf(line));
-        self.notes.add(copyOf(note));
+        self.lines.add(line);
+        self.notes.add(note);
         return self;
     }
 
@@ -444,7 +449,7 @@ pub class Command : Copy<Command> {
     /** Whether `word` is one of its aliases. */
     pub fn answers(self, word : string) : bool {
         for (i of 0..self.aliases.size()) {
-            if (self.aliases.at(i) == word) {
+            if ((self.aliases.get(i) ?? "") == word) {
                 return true;
             }
         }
@@ -472,13 +477,13 @@ pub class Command : Copy<Command> {
     }
 
     /** Every name the subcommands answer to, for suggestions. */
-    pub fn subNames(self) : Values<string> {
-        let out : Values<string> = new Values<string>();
+    pub fn subNames(self) : ArrayList<string> {
+        let out : ArrayList<string> = new ArrayList<string>();
         for (i of 0..self.subs.size()) {
-            out.add(copyOf(self.subs.at(i).name));
+            out.add(self.subs.at(i).name);
             let c : Command = self.subs.at(i);
             for (k of 0..c.aliases.size()) {
-                out.add(copyOf(c.aliases.at(k)));
+                out.add((c.aliases.get(k) ?? ""));
             }
         }
         return out;
@@ -487,10 +492,10 @@ pub class Command : Copy<Command> {
     /** A separate object with the same declaration, subcommands included. */
     pub fn copy(self) : Command {
         let mut c : Command = new Command(self.name, self.about);
-        c.ver = copyOf(self.ver);
+        c.ver = self.ver;
         c.hidden = self.hidden;
         for (i of 0..self.aliases.size()) {
-            c.aliases.add(copyOf(self.aliases.at(i)));
+            c.aliases.add((self.aliases.get(i) ?? ""));
         }
         for (i of 0..self.opts.size()) {
             c.opts.add(self.opts.at(i));
@@ -502,8 +507,8 @@ pub class Command : Copy<Command> {
             c.subs.add(self.subs.at(i).copy());
         }
         for (i of 0..self.lines.size()) {
-            c.lines.add(copyOf(self.lines.at(i)));
-            c.notes.add(copyOf(self.notes.at(i)));
+            c.lines.add((self.lines.get(i) ?? ""));
+            c.notes.add((self.notes.get(i) ?? ""));
         }
         return c;
     }

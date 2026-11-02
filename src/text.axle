@@ -1,0 +1,55 @@
+// text — the few things a command line needs of a string that `std` does not do in the shape it needs.
+//
+// `substring` throws on a bad index and a parser has no bad index to give it; the number parsers throw
+// where a parser wants a yes or a no.
+
+use std::text;
+use std::text::StringBuilder;
+
+/** The characters of `s` from `a` up to `b`; what lies outside the string is left off. */
+pub fn slice(s : string, a : i32, b : i32) : string {
+    let from : i32 = a < 0 ? 0 : a;
+    let to : i32 = b > s.length ? s.length : b;
+    if (from >= to) {
+        return "";
+    }
+    try {
+        return s.substring(from, to);
+    } catch e : IndexOutOfBoundsException {
+        return "";
+    }
+}
+
+/**
+ * A string of its own with the same text. A string read out of a list is only borrowed from it, and goes
+ * when the list goes; one that must outlive the list is made fresh first.
+ */
+pub fn fresh(s : string) : string {
+    let sb : StringBuilder = new StringBuilder();
+    sb.append(s);
+    return sb.toString();
+}
+
+/** The characters of `s` from `a` to its end. */
+pub fn sliceFrom(s : string, a : i32) : string {
+    return slice(s, a, s.length);
+}
+
+/** The whole number in `s`, or `ok == false`. */
+pub fn wholeNumber(s : string) : (ok: bool, value: i64) {
+    let none : i64 = 0;
+    try {
+        return (true, text::parseI64(s));
+    } catch e : ParseException {
+        return (false, none);
+    }
+}
+
+/** The number in `s`, with or without a fraction, or `ok == false`. */
+pub fn realNumber(s : string) : (ok: bool, value: f64) {
+    try {
+        return (true, text::parseF64(s));
+    } catch e : ParseException {
+        return (false, 0.0);
+    }
+}

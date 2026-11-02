@@ -5,15 +5,15 @@
 // A program does not walk `argc()` and `argAt()` itself: the words it was started with are read here, once,
 // and handed to the parser. `processWords()` is for the program that wants them as they are.
 
-use crate::core::error::UsageError;
-use crate::core::list::Values;
-use crate::core::parse::{Parsed, parseLine, readLine};
-use crate::core::spec::Command;
+use crate::error::UsageError;
+use std::collections::ArrayList;
+use crate::parse::{Parsed, parseLine, readLine};
+use crate::spec::Command;
 use std::sys::process::{argAt, argc};
 
 /** The words the process was started with, after the program's name, as they were typed. */
-pub fn processWords() : Values<string> {
-    let out : Values<string> = new Values<string>();
+pub fn processWords() : ArrayList<string> {
+    let out : ArrayList<string> = new ArrayList<string>();
     for (i of 1..argc()) {
         try {
             out.add(argAt(i));

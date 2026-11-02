@@ -1,0 +1,256 @@
+// The library's checks: one program, run by `axle run` in this folder. It prints each check that fails and
+// leaves with the number of failures, so 0 is a pass.
+
+use clinch::{Arg, Command, InvalidValue, MissingArgument, MissingValue, Opt, Parsed, Source, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError, editDistance, nearestWord, parseLine, readLine, realNumber, slice, wholeNumber, EXIT_CONFIG, EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE};
+use std::collections::ArrayList;
+
+class Checks {
+    pub failed : i32 = 0;
+    pub total  : i32 = 0;
+
+    pub fn that(mut self, name : string, ok : bool) : void {
+        self.total = self.total + 1;
+        if (!ok) {
+            self.failed = self.failed + 1;
+            println("FAIL " + name);
+        }
+    }
+}
+
+/** The program the checks read lines against. */
+fn tool() : Command {
+    let serve : Command = Command::create("serve", "Run the server")
+        .alias("run")
+        .add(Opt::integer("-p, --port <n>", "Port", "8080"))
+        .add(Opt::many("-I, --include <dir>", "Search path"))
+        .add(Opt::flag("-q, --quiet", "Quiet"))
+        .arg(Arg::required("root", "Folder"))
+        .arg(Arg::rest("extra", "More"));
+    let list : Command = Command::create("list", "List things")
+        .arg(Arg::optional("filter", "Filter"));
+    return Command::create("tool", "A tool")
+        .version("1.2.0")
+        .add(Opt::flag("-v, --verbose", "More output"))
+        .add(Opt::choice("--format <fmt>", "Output", "text|json|csv", "text"))
+        .sub(serve)
+        .sub(list);
+}
+
+/** The words of a line typed with single spaces between them. */
+fn words(line : string) : ArrayList<string> {
+    let out : ArrayList<string> = new ArrayList<string>();
+    let mut word : string = "";
+    for (i of 0..line.length + 1) {
+        if (i == line.length || line.charAt(i) == 32) {
+            if (word != "") {
+                out.add(word);
+            }
+            word = "";
+        } else {
+            word = word + slice(line, i, i + 1);
+        }
+    }
+    return out;
+}
+
+/** The line, read; a mistake is the check's business, so it is answered as the name of its kind. */
+fn kindOf(line : ArrayList<string>) : string {
+    try {
+        parseLine(tool(), line);
+        return "ok";
+    } catch e : UnknownCommand {
+        return "UnknownCommand";
+    } catch e : UnknownOption {
+        return "UnknownOption";
+    } catch e : MissingValue {
+        return "MissingValue";
+    } catch e : MissingArgument {
+        return "MissingArgument";
+    } catch e : UnexpectedArgument {
+        return "UnexpectedArgument";
+    } catch e : InvalidValue {
+        return "InvalidValue";
+    } catch e : UsageError {
+        return "UsageError";
+    }
+}
+
+fn reportOf(line : ArrayList<string>) : string {
+    try {
+        parseLine(tool(), line);
+        return "";
+    } catch e : UsageError {
+        return e.report();
+    }
+}
+
+fn read(line : string) : Parsed ! UsageError {
+    return parseLine(tool(), words(line));
+}
+
+fn numbers(c : Checks) : void {
+    c.that(
+        "wholeNumber reads signed decimals",
+        wholeNumber("-42").ok && wholeNumber("-42").value == -42
+    );
+    c.that("wholeNumber refuses words and empties", !wholeNumber("4x").ok && !wholeNumber("").ok);
+    c.that("realNumber reads fractions", realNumber("3.25").ok && realNumber("3.25").value == 3.25);
+    c.that("realNumber refuses words", !realNumber("1.x").ok && !realNumber("").ok);
+}
+
+fn suggestions(c : Checks) : void {
+    let names : ArrayList<string> = new ArrayList<string>();
+    names.add("--verbose");
+    names.add("--version");
+    names.add("--output");
+    c.that("distance of equal words is 0", editDistance("abc", "abc") == 0);
+    c.that("distance counts a substitution", editDistance("kitten", "sitten") == 1);
+    c.that("distance counts a swap as one", editDistance("serve", "sevre") == 1);
+    c.that(
+        "distance against empty is the length",
+        editDistance("", "abc") == 3 && editDistance("ab", "") == 2
+    );
+    c.that("kitten and sitting are 3 apart", editDistance("kitten", "sitting") == 3);
+    c.that("nearest finds the near miss", nearestWord("--verbos", names) == "--verbose");
+    c.that("nearest says nothing for a far word", nearestWord("--zzzzzz", names) == "");
+    c.that("nearest ignores case", nearestWord("--OUTPUT", names) == "--output");
+}
+
+fn forms(c : Checks) : void ! UsageError {
+    let mut p : Parsed = read("serve site");
+    c.that("a subcommand is found", p.path() == "tool serve");
+    c.that("a positional is read", p.arg("root") == "site");
+    c.that("a default fills in", p.integer("port") == 8080 && p.source("port") == Source::Default);
+    c.that("the root's default is inherited", p.text("format") == "text");
+    p = read("serve --port 9000 site");
+    c.that(
+        "long option, separate value",
+        p.integer("port") == 9000 && p.source("port") == Source::Argv
+    );
+    c.that("long option with =", read("serve --port=81 s").integer("port") == 81);
+    c.that("short option, separate value", read("serve -p 82 s").integer("port") == 82);
+    c.that("short option, glued value", read("serve -p83 s").integer("port") == 83);
+    p = read("serve -qp 84 s");
+    c.that("a cluster ends with a value option", p.flag("quiet") && p.integer("port") == 84);
+    c.that("an alias names its command", read("run s").path() == "tool serve");
+    c.that(
+        "the parent's options work after the subcommand",
+        read("serve s --verbose").flag("verbose")
+    );
+    c.that("the parent's options work before it", read("-v serve s").flag("verbose"));
+    c.that("an absent flag is off", !read("serve s").flag("verbose"));
+    p = read("serve -I a -I b s");
+    c.that("a repeated option keeps all its values", p.all("include").size() == 2);
+    c.that(
+        "the repeated values are in order",
+        (p.all("include").get(0) ?? "") == "a" && (p.all("include").get(1) ?? "") == "b"
+    );
+    p = read("serve s x y z");
+    c.that("the rest argument takes what remains", p.rest("extra").size() == 3);
+    p = read("serve -- -weird --name");
+    c.that(
+        "-- makes the rest positional",
+        p.arg("root") == "-weird" && p.rest("extra").size() == 1
+    );
+    c.that("a lone - is a positional", read("serve -").arg("root") == "-");
+    c.that("a negative number is a value", read("serve -p -5 s").integer("port") == -5);
+    c.that("--flag=false switches a flag off", !read("serve --quiet=false s").flag("quiet"));
+    c.that("--help stops the reading", read("serve --help").helpAsked && read("-h").helpAsked);
+    c.that("--help names the command it was asked of", read("serve -h").path() == "tool serve");
+    c.that("--version is answered when the root has one", read("--version").versionAsked);
+    c.that("the version line names the program", read("-V").versionLine() == "tool 1.2.0");
+    c.that("a choice is read", read("--format json list").text("format") == "json");
+}
+
+fn mistakes(c : Checks) : void {
+    c.that("an unknown option", kindOf(words("serve --prot 1 s")) == "UnknownOption");
+    c.that("an unknown short option", kindOf(words("serve -z s")) == "UnknownOption");
+    c.that(
+        "an unknown option of a sibling command",
+        kindOf(words("list --quiet")) == "UnknownOption"
+    );
+    c.that("an unknown command", kindOf(words("sevre x")) == "UnknownCommand");
+    c.that("a missing value", kindOf(words("serve --port")) == "MissingValue");
+    c.that(
+        "an option as a value is a missing value",
+        kindOf(words("serve --port --quiet s")) == "MissingValue"
+    );
+    c.that("a value of the wrong kind", kindOf(words("serve --port abc s")) == "InvalidValue");
+    c.that("a word that is not a choice", kindOf(words("--format jsno list")) == "InvalidValue");
+    c.that("a missing required argument", kindOf(words("serve")) == "MissingArgument");
+    c.that("one argument too many", kindOf(words("list a b")) == "UnexpectedArgument");
+    c.that("a bare command group asks for a command", kindOf(words("")) == "UsageError");
+    c.that("a good line is ok", kindOf(words("list")) == "ok");
+    c.that(
+        "an unknown option is reported with its hint",
+        reportOf(
+            words("serve --prot 1 s")
+        ) == "error: unknown option `--prot`\n  did you mean `--port`?"
+    );
+    c.that(
+        "an unknown command is reported with its hint",
+        reportOf(words("sevre x")) == "error: unknown command `sevre`\n  did you mean `serve`?"
+    );
+    c.that(
+        "a wrong value says what was expected",
+        reportOf(
+            words("serve --port abc s")
+        ) == "error: invalid value `abc` for `--port`: expected a whole number"
+    );
+    c.that(
+        "a near-miss choice is suggested",
+        reportOf(words("--format jsno list")).endsWith("did you mean `json`?")
+    );
+    c.that(
+        "a missing argument is named",
+        reportOf(words("serve")) == "error: missing required argument <root>"
+    );
+}
+
+fn sources(c : Checks) : void ! UsageError {
+    let mut p : Parsed = readLine(tool(), words("serve s"));
+    p.offer("port", "7000", Source::Config);
+    p.offer("port", "7100", Source::Env);
+    p.offer("port", "7200", Source::Config);
+    p.seal();
+    c.that(
+        "the environment beats a file, which beats the default",
+        p.integer("port") == 7100 && p.source("port") == Source::Env
+    );
+    p = readLine(tool(), words("serve -p 1 s"));
+    p.offer("port", "7100", Source::Env);
+    p.seal();
+    c.that(
+        "the command line beats the environment",
+        p.integer("port") == 1 && p.source("port") == Source::Argv
+    );
+}
+
+fn statuses(c : Checks) : void {
+    c.that(
+        "the statuses follow sysexits",
+        EXIT_OK == 0 && EXIT_USAGE == 2 && EXIT_CONFIG == 78 && EXIT_INTERRUPTED == 130
+    );
+    try {
+        parseLine(tool(), words("serve --prot"));
+    } catch e : UsageError {
+        c.that("a usage error carries status 2", e.code == EXIT_USAGE);
+    }
+}
+
+fn main() : i32 {
+    let c : Checks = new Checks();
+    try {
+        numbers(c);
+        suggestions(c);
+        forms(c);
+        mistakes(c);
+        sources(c);
+        statuses(c);
+    } catch e : UsageError {
+        println("FAIL a line that should read was refused: " + e.message);
+        return 1;
+    }
+    println(c.total.toString() + " checks, " + c.failed.toString() + " failed");
+    return c.failed;
+}

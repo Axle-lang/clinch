@@ -1,0 +1,64 @@
+// suggest — "did you mean …?": the nearest word among those a program accepts.
+//
+// A mistyped command or option is nearly always one edit from the real one, so the nearest word by edit
+// distance is a good guess when it is near enough. "Near enough" depends on length: one slip in a
+// three-letter word is a third of it, in a ten-letter word a tenth. The cut is a third of the typed word,
+// rounded up, and never less than one; a word past it is not suggested, because a wrong suggestion is worse
+// than none.
+
+use crate::text::fresh;
+use std::collections::ArrayList;
+
+/**
+ * The fewest insertions, deletions and substitutions that turn `a` into `b`; a swap of two neighbours counts
+ * as one edit (the commonest slip of the fingers).
+ */
+pub fn editDistance(a : string, b : string) : i32 {
+    let n : i32 = a.length;
+    let m : i32 = b.length;
+    if (n == 0) {
+        return m;
+    }
+    if (m == 0) {
+        return n;
+    }
+    let width : i32 = m + 1;
+    let mut grid : i32[] = malloc<i32>(((n + 1) * width) as i64);
+    for (j of 0..m + 1) {
+        grid[j as i64] = j;
+    }
+    for (i of 1..n + 1) {
+        grid[(i * width) as i64] = i;
+        for (j of 1..m + 1) {
+            let cost : i32 = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+            let up : i32 = grid[((i - 1) * width + j) as i64] + 1;
+            let left : i32 = grid[(i * width + j - 1) as i64] + 1;
+            let diag : i32 = grid[((i - 1) * width + j - 1) as i64] + cost;
+            let mut best : i32 = up.min(left).min(diag);
+            if (i > 1 && j > 1 && a.charAt(i - 1) == b.charAt(j - 2) && a.charAt(i - 2) == b.charAt(j - 1)) {
+                best = best.min(grid[((i - 2) * width + j - 2) as i64] + 1);
+            }
+            grid[(i * width + j) as i64] = best;
+        }
+    }
+    return grid[(n * width + m) as i64];
+}
+
+/**
+ * The nearest of `words` to `typed`, or "" when none is within reach. Case does not count; the first of
+ * equally near words wins, so the order the program lists its words in is the order of preference.
+ */
+pub fn nearestWord(typed : string, words : ArrayList<string>) : string {
+    let lowered : string = typed.toLowerCase();
+    let reach : i32 = (typed.length + 2) / 3 < 1 ? 1 : (typed.length + 2) / 3;
+    let mut best : string = "";
+    let mut bestAt : i32 = reach + 1;
+    for (i of 0..words.size()) {
+        let d : i32 = editDistance(lowered, (words.get(i) ?? "").toLowerCase());
+        if (d < bestAt) {
+            bestAt = d;
+            best = (words.get(i) ?? "");
+        }
+    }
+    return fresh(best);
+}

@@ -1,12 +1,13 @@
-// list — sequences that grow as things are added to them.
+// list — the two sequences `std` cannot give a class as a field.
 //
-// Every reading of the system is a list of rows whose number nobody knows beforehand: the entries of a
-// folder, the sockets of the machine, the steps of a plan. The tables of this library wrap a `List` and
-// add the questions that suit their rows; the growing is written once, here.
+// `std`'s `ArrayList<T>` holds numbers and strings anywhere, but as the type of a field it cannot hold a
+// struct or a class of your own (Axle 0.18.3: "Undefined type"). A command holds its options and arguments
+// (structs) and its subcommands (classes), so it uses these:
 //
-// Growing means moving the rows into a bigger array, and an array of objects cannot be moved by
-// aliasing its elements: two arrays would own the same object. So a `List` asks its rows to be `Copy`,
-// and grows by copying them. Numbers and strings need no copying and go in a `Values`.
+//   Values<T>        rows that are plain values, such as a struct
+//   List<T : Copy>   rows that are objects able to copy themselves
+//
+// Strings go in `ArrayList<string>` as usual.
 
 /** A class that can make a separate object with the same reading. */
 pub trait Copy<T> {

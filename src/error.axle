@@ -15,8 +15,6 @@
 //     InvalidValue     a value of the wrong kind: `expected` says what would have done
 //   ConfigError      a file, an environment variable or a default that cannot be used
 
-use crate::core::text::copyOf;
-
 // The statuses a process leaves with. They follow `sysexits.h` where it has a word for the case. They are
 // constants, not an enum or a class of functions: `main` returns an `i32`, and `return EXIT_USAGE;` is all
 // a program has to write.
@@ -86,7 +84,7 @@ pub exception UsageError : CliError {
 
     constructor(message : string, hint : string) {
         super(message, EXIT_USAGE);
-        self.hint = copyOf(hint);
+        self.hint = hint;
     }
 
     /** What to print for it: the message, and under it the hint when there is one. */
@@ -107,12 +105,9 @@ pub exception UnknownCommand : UsageError {
     pub suggestion : string;
 
     constructor(name : string, suggestion : string) {
-        super(
-            "unknown command `" + name + "`",
-            didYouMean(suggestion)
-        );
-        self.name = copyOf(name);
-        self.suggestion = copyOf(suggestion);
+        super("unknown command `" + name + "`", didYouMean(suggestion));
+        self.name = name;
+        self.suggestion = suggestion;
     }
 }
 
@@ -125,12 +120,9 @@ pub exception UnknownOption : UsageError {
     pub suggestion : string;
 
     constructor(name : string, suggestion : string) {
-        super(
-            "unknown option `" + name + "`",
-            didYouMean(suggestion)
-        );
-        self.name = copyOf(name);
-        self.suggestion = copyOf(suggestion);
+        super("unknown option `" + name + "`", didYouMean(suggestion));
+        self.name = name;
+        self.suggestion = suggestion;
     }
 }
 
@@ -141,7 +133,7 @@ pub exception MissingValue : UsageError {
 
     constructor(option : string, expects : string) {
         super("option `" + option + "` needs a value", "give it as `" + option + " <" + expects + ">`");
-        self.option = copyOf(option);
+        self.option = option;
     }
 }
 
@@ -152,7 +144,7 @@ pub exception MissingArgument : UsageError {
 
     constructor(argument : string) {
         super("missing required argument <" + argument + ">", "");
-        self.argument = copyOf(argument);
+        self.argument = argument;
     }
 }
 
@@ -163,7 +155,7 @@ pub exception UnexpectedArgument : UsageError {
 
     constructor(value : string) {
         super("unexpected argument `" + value + "`", "");
-        self.value = copyOf(value);
+        self.value = value;
     }
 }
 
@@ -186,10 +178,10 @@ pub exception InvalidValue : UsageError {
             "invalid value `" + value + "` for `" + option + "`: expected " + expected,
             didYouMean(suggestion)
         );
-        self.option = copyOf(option);
-        self.value = copyOf(value);
-        self.expected = copyOf(expected);
-        self.suggestion = copyOf(suggestion);
+        self.option = option;
+        self.value = value;
+        self.expected = expected;
+        self.suggestion = suggestion;
     }
 }
 
@@ -200,6 +192,6 @@ pub exception ConfigError : CliError {
 
     constructor(source : string, message : string) {
         super(source + ": " + message, EXIT_CONFIG);
-        self.source = copyOf(source);
+        self.source = source;
     }
 }
