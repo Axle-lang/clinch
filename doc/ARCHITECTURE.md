@@ -34,3 +34,13 @@ independent.
 
 `Commands` exists because a `List` asks its rows to be `Copy`, and a `Command` cannot say so of itself while it
 is still being declared: the subcommands of a command are kept by a small sequence of their own.
+
+## Decisions worth knowing
+
+- **A declaration is built by chaining from `Command::create(...)`.** The chain starts at a `static fn` because
+  Axle reads `new Command(...).add(...)` as a statement; every method that continues it returns the command.
+- **The parser is a free function, not a method of `Command`.** `parseProcess(root)` and `parseLine(root, words)`
+  take the command; `root.parse(words)` was tried and dropped. It makes `core::spec` call `core::parse`, which
+  already imports `spec`: the compiler accepts that import cycle but type-checks the generic parameter that
+  crosses it (`Values<string>`) as a bare `Values`, and rejects the call (E0001). A non-generic `Words` type would
+  lift it, at the price of one more type for the rare path; it is not worth it while `parseProcess` is the way in.

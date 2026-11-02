@@ -1,26 +1,37 @@
 # What is not proved yet
 
-This file says what the code claims and how far that has been checked.
+What the code claims, and how far each claim has been checked. Three levels, from the strongest.
 
-- **What the compiler has and has not seen.** `axle check` and `axle build` pass on Windows and Linux in CI, and
-  `examples/hello` runs there with its exit status checked. That is one program exercising the parser, the
-  suggestions and the errors. The 74 checks in `tools/axpy` run the *translated* sources: a model of the language,
-  which does not model who owns a string (see the README's Honest status). Anything not reached by
-  `examples/hello` is proved by the translator only.
-- **Chaining starts from a `static fn`.** `Command::create(...).add(...)` is checked on the compiler; `new Command(...)
-  .add(...)` is not valid Axle (`new X()` without parentheses reads as a statement), so the library offers
-  `create` and never asks for the other form.
-- **No `root.parse(words)`.** A method on `Command` that reads the line was tried: `core::spec` would call
-  `core::parse`, which already imports `spec`. The compiler accepts the cycle but type-checks a generic parameter
-  (`Values<string>`) that crosses it as a bare `Values` (E0001 on `axle check`), so `parseLine`, `readLine` and
-  `parseProcess` stay free functions. A non-generic `Words` type would lift it, at the price of one more type
-  in the rare path (`parseLine`); not worth it while `parseProcess` is the way in.
-- **Numbers.** Integers are decimal with an optional sign and at most 18 digits. Floats are decimal with an
-  optional fraction; there is no exponent (`1e3`) and no `inf` or `nan`.
+## Proved by the compiler
+
+`axle check` and `axle build` pass on Windows and Linux in CI, and `examples/hello` is run there with its exit
+status checked. That one program reaches:
+
+- a command with a subcommand, an alias, a long option with a value and a required argument;
+- `--version`;
+- an unknown option, which prints the message and `did you mean …?` and exits with status 2.
+
+## Only run through the translator
+
+Everything else — the other forms of option, the validation of values, the suggestions for commands and
+choices, the order of the sources, every error and its message — is run by the 74 checks in `tools/axpy`, which
+translate the sources to Python. The translator is a model of the language, not the compiler, and there is one
+thing it does not model: **who owns a string**. That is where the compiler and the executed example found real
+bugs the Python never could (see the README's *Honest status*). So a path the example does not reach is
+proved by the translator only, and may still meet the compiler's ownership rules.
+
+## Limits by design
+
+- **Numbers.** An integer is decimal with an optional sign and at most 18 digits. A float is decimal with an
+  optional fraction: no exponent (`1e3`), no `inf`, no `nan`.
 - **Case.** Suggestions ignore the case of ASCII letters only.
-- **A repeated option that is not declared `many`** keeps every value but `text`/`integer` read the last.
+- **An option given twice.** If it is not declared `many`, every value is kept, but `text`, `integer` and `number`
+  read the last one; `all` returns them all.
 - **Strings are copied wherever they are stored.** A string read out of an object cannot be handed to a new
-  owner, and a constructor that keeps its parameter keeps somebody else's memory. `copyOf` is the answer; it
-  costs an allocation per stored string, which a command line can afford.
-- **Not there yet:** `--help` text, configuration files, environment variables, completion scripts, JSON and
-  CSV output, prompts, progress and signal handling. See `doc/ROADMAP.md`.
+  owner, so `copyOf` makes a value of its own. It costs one allocation per stored string, which a command line can
+  afford.
+
+## Not written yet
+
+`--help` text, configuration files, environment variables, completion scripts, JSON and CSV output, prompts,
+progress and signal handling. [`doc/ROADMAP.md`](doc/ROADMAP.md) has the order.
