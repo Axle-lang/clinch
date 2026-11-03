@@ -1,7 +1,7 @@
 // The library's checks: one program, run by `axle run` in this folder. It prints each check that fails and
 // leaves with the number of failures, so 0 is a pass.
 
-use clinch::{Arg, Command, InvalidValue, MissingArgument, MissingValue, Opt, Parsed, Source, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError, editDistance, nearestWord, parseLine, readLine, realNumber, slice, wholeNumber, EXIT_CONFIG, EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE};
+use clinch::{Arg, Command, InvalidValue, MissingArgument, MissingValue, Opt, Input, Source, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError, editDistance, nearestWord, listenTo, listenToRaw, realNumber, slice, wholeNumber, EXIT_CONFIG, EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE};
 use std::collections::ArrayList;
 
 class Checks {
@@ -56,7 +56,7 @@ fn words(line : string) : ArrayList<string> {
 /** The line, read; a mistake is the check's business, so it is answered as the name of its kind. */
 fn kindOf(line : ArrayList<string>) : string {
     try {
-        parseLine(tool(), line);
+        listenTo(tool(), line);
         return "ok";
     } catch e : UnknownCommand {
         return "UnknownCommand";
@@ -77,15 +77,15 @@ fn kindOf(line : ArrayList<string>) : string {
 
 fn reportOf(line : ArrayList<string>) : string {
     try {
-        parseLine(tool(), line);
+        listenTo(tool(), line);
         return "";
     } catch e : UsageError {
         return e.report();
     }
 }
 
-fn read(line : string) : Parsed ! UsageError {
-    return parseLine(tool(), words(line));
+fn read(line : string) : Input ! UsageError {
+    return listenTo(tool(), words(line));
 }
 
 fn numbers(c : Checks) : void {
@@ -117,7 +117,7 @@ fn suggestions(c : Checks) : void {
 }
 
 fn forms(c : Checks) : void ! UsageError {
-    let mut p : Parsed = read("serve site");
+    let mut p : Input = read("serve site");
     c.that("a subcommand is found", p.path() == "tool serve");
     c.that("a positional is read", p.arg("root") == "site");
     c.that("a default fills in", p.integer("port") == 8080 && p.source("port") == Source::Default);
@@ -208,7 +208,7 @@ fn mistakes(c : Checks) : void {
 }
 
 fn sources(c : Checks) : void ! UsageError {
-    let mut p : Parsed = readLine(tool(), words("serve s"));
+    let mut p : Input = listenToRaw(tool(), words("serve s"));
     p.offer("port", "7000", Source::Config);
     p.offer("port", "7100", Source::Env);
     p.offer("port", "7200", Source::Config);
@@ -217,7 +217,7 @@ fn sources(c : Checks) : void ! UsageError {
         "the environment beats a file, which beats the default",
         p.integer("port") == 7100 && p.source("port") == Source::Env
     );
-    p = readLine(tool(), words("serve -p 1 s"));
+    p = listenToRaw(tool(), words("serve -p 1 s"));
     p.offer("port", "7100", Source::Env);
     p.seal();
     c.that(
@@ -248,7 +248,7 @@ fn statuses(c : Checks) : void {
         EXIT_OK == 0 && EXIT_USAGE == 2 && EXIT_CONFIG == 78 && EXIT_INTERRUPTED == 130
     );
     try {
-        parseLine(tool(), words("serve --prot"));
+        listenTo(tool(), words("serve --prot"));
     } catch e : UsageError {
         c.that("a usage error carries status 2", e.code == EXIT_USAGE);
     }

@@ -13,7 +13,7 @@
 <h2>Declare it <em>once</em>. Read it, check it, and correct the typo.</h2>
 <div class="card grid">
 <div class="code mono">
-<div class="line"><span class="k">use</span> clinch::{<span class="f">Arg</span>, <span class="f">Command</span>, <span class="f">Opt</span>, <span class="f">Parsed</span>, <span class="f">parseProcess</span>};</div>
+<div class="line"><span class="k">use</span> clinch::{<span class="f">Arg</span>, <span class="f">Command</span>, <span class="f">Input</span>, <span class="f">Opt</span>};</div>
 <div class="gap"></div>
 <div class="line"><span class="k">let</span> serve : Command = <span class="f">Command::create</span>(<span class="s">"serve"</span>, <span class="s">"Run the server"</span>)</div>
 <div class="line">    .<span class="f">alias</span>(<span class="s">"run"</span>)</div>
@@ -27,7 +27,7 @@
 <div class="line">    .<span class="f">sub</span>(serve);</div>
 <div class="gap"></div>
 <div class="line"><span class="c">// the process's own command line, read and checked</span></div>
-<div class="line"><span class="k">let</span> p : Parsed = <span class="f">parseProcess</span>(root);</div>
+<div class="line"><span class="k">let</span> p : Input = root.<span class="f">listen</span>();</div>
 <div class="line"><span class="k">let</span> port : i64 = p.<span class="f">integer</span>(<span class="s">"port"</span>);</div>
 <div class="line"><span class="k">let</span> dir : string = p.<span class="f">arg</span>(<span class="s">"root"</span>);</div>
 <div class="gap"></div>

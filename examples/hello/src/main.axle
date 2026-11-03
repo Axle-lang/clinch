@@ -2,7 +2,7 @@
 //
 // Build & run:  axle build, then  target/hello serve --port 9000 site   (or --version, or a typo of either)
 
-use clinch::{Arg, Command, Opt, Parsed, UsageError, parseProcess};
+use clinch::{Arg, Command, Input, Opt, UsageError};
 
 /** What this program accepts. */
 fn spec() : Command {
@@ -19,16 +19,16 @@ fn spec() : Command {
 
 fn main() : i32 {
     try {
-        let parsed : Parsed = parseProcess(spec());
-        if (parsed.versionAsked) {
-            println(parsed.versionLine());
+        let input : Input = spec().listen();
+        if (input.versionAsked) {
+            println(input.versionLine());
             return 0;
         }
-        if (parsed.helpAsked) {
-            println(parsed.help());
+        if (input.helpAsked) {
+            println(input.help());
             return 0;
         }
-        println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
+        println(input.path() + ": serving " + input.arg("root") + " on " + input.text("port"));
         return 0;
     } catch e : UsageError {
         println(e.report());

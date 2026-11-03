@@ -1,13 +1,13 @@
 // args — the command line of the process, read against what the program declared.
 //
-//     let parsed : Parsed = parseProcess(spec());
+//     let input : Input = spec().listen();
 //
 // A program does not walk `argc()` and `argAt()` itself: the words it was started with are read here, once,
 // and handed to the parser. `processWords()` is for the program that wants them as they are.
 
 use crate::error::UsageError;
 use std::collections::ArrayList;
-use crate::parse::{Parsed, parseLine, readLine};
+use crate::input::{Input, listenTo, listenToRaw};
 use crate::spec::Command;
 use std::sys::process::{argAt, argc};
 
@@ -25,14 +25,14 @@ pub fn processWords() : ArrayList<string> {
 }
 
 /** The process's own command line, read against `root`, defaults included. */
-pub fn parseProcess(root : Command) : Parsed ! UsageError {
-    return parseLine(root, processWords());
+pub fn listenProcess(root : Command) : Input ! UsageError {
+    return listenTo(root, processWords());
 }
 
 /**
  * The same without the defaults, so the environment and a file can be offered first and `seal()` called
  * after.
  */
-pub fn readProcess(root : Command) : Parsed ! UsageError {
-    return readLine(root, processWords());
+pub fn listenProcessRaw(root : Command) : Input ! UsageError {
+    return listenToRaw(root, processWords());
 }

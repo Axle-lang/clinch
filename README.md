@@ -49,7 +49,7 @@
 | **Values** | Checked against the kind the option declared — whole number, number, text, path, one of a set of words — and refused with what was expected |
 | **Mistakes** | A `UsageError` carries the status to leave with, and is one of six reasons. When the word is a near miss of a real one it says so: ``did you mean `--port`?`` |
 | **Provenance** | Every answer remembers whether it came from the command line, the environment, a file or the default; a lower source never replaces a higher one |
-| **Help** | `parsed.help()` writes `--help` from the declaration: usage line, arguments, commands, options with their default and choices, the options of the commands above, examples; `parsed.versionLine()` writes `--version` |
+| **Help** | `input.help()` writes `--help` from the declaration: usage line, arguments, commands, options with their default and choices, the options of the commands above, examples; `input.versionLine()` writes `--version` |
 | **Statuses** | `EXIT_USAGE` is 2, `EXIT_CONFIG` 78, `EXIT_INTERRUPTED` 130, and the rest of `sysexits.h`, as `pub const`s: `return EXIT_USAGE;` is all a `main` writes |
 
 ## 🚀 Quick start
@@ -64,7 +64,7 @@ clinch = { path = "../clinch" }
 ```
 
 ```rs
-use clinch::{Arg, Command, Opt, Parsed, UsageError, parseProcess};
+use clinch::{Arg, Command, Input, Opt, UsageError};
 
 fn spec() : Command {
     let serve : Command = Command::create("serve", "Pretend to serve a folder")
@@ -79,16 +79,16 @@ fn spec() : Command {
 
 fn main() : i32 {
     try {
-        let parsed : Parsed = parseProcess(spec());     // the process's own command line
-        if (parsed.versionAsked) {
-            println(parsed.versionLine());              // hello 0.1.0
+        let input : Input = spec().listen();     // listen to what the user typed
+        if (input.versionAsked) {
+            println(input.versionLine());              // hello 0.1.0
             return 0;
         }
-        if (parsed.helpAsked) {
-            println(parsed.help());                     // written from the declaration above
+        if (input.helpAsked) {
+            println(input.help());                     // written from the declaration above
             return 0;
         }
-        println(parsed.path() + ": serving " + parsed.arg("root") + " on " + parsed.text("port"));
+        println(input.path() + ": serving " + input.arg("root") + " on " + input.text("port"));
         return 0;
     } catch e : UsageError {
         println(e.report());            // the message, and under it "did you mean …?" when one is near
@@ -121,24 +121,25 @@ Options of the commands above:
   -v, --verbose   Say more
 ```
 
-`parseProcess(root)` reads the process's own command line. `parseLine(root, words)` is the same read over an
-`ArrayList<string>` you hand it — a test, a line typed in a prompt. `readProcess` and `readLine` stop before the
-defaults are added, so the environment and a file can be offered first.
+`cmd.listen()` listens to what the user typed: the process's own command line, read against the command and
+checked. `listenTo(cmd, words)` is the same over an `ArrayList<string>` you hand it — a test, a line typed in a
+prompt. `cmd.listenRaw()` and `listenToRaw` stop before the defaults are added, so the environment and a file can
+be offered first.
 
 ## 🔎 What it reads
 
 | Form | Example | Read as |
 |---|---|---|
-| long option | `--port 80`, `--port=80` | `parsed.integer("port")` is 80 |
+| long option | `--port 80`, `--port=80` | `input.integer("port")` is 80 |
 | short option | `-p 80`, `-p80` | the same option |
 | cluster of flags | `-vq`, `-vqp 80` | letters read left to right until one takes a value |
-| repeated option | `-I a -I b` | `parsed.all("include")` is `a`, `b` |
-| subcommand and alias | `serve`, `run` | `parsed.path()` is `tool serve` either way |
+| repeated option | `-I a -I b` | `input.all("include")` is `a`, `b` |
+| subcommand and alias | `serve`, `run` | `input.path()` is `tool serve` either way |
 | negative number | `-p -5` | a value, not an option |
 | end of options | `-- -weird` | everything after is positional |
 | lone dash | `-` | a positional (stdin, by convention) |
-| switched-off flag | `--quiet=false` | `parsed.flag("quiet")` is false |
-| help and version | `-h`, `--help`, `-V`, `--version` | `parsed.helpAsked`, `parsed.versionAsked` — reading stops |
+| switched-off flag | `--quiet=false` | `input.flag("quiet")` is false |
+| help and version | `-h`, `--help`, `-V`, `--version` | `input.helpAsked`, `input.versionAsked` — reading stops |
 
 Values are read with `text`, `integer`, `number` and `flag`; positionals with `arg("name")`, `rest("name")` and
 `count()`; where an answer came from with `source("name")`.
@@ -151,16 +152,16 @@ remembers where it came from, so *"why is this 4?"* has an answer.
 <div align="center"><img src="doc/img/contract.png" width="100%"></div>
 
 The environment and the file are the levels still to be read; the order they will feed — and the rule that a
-lower source never replaces a higher one — is written and checked (`Parsed::offer`).
+lower source never replaces a higher one — is written and checked (`Input::offer`).
 
 ## 📦 What's in the box
 
 | | |
 |---|---|
 | `src/spec.axle` | `Command`, `Opt`, `Arg`, `Kind` — the declaration |
-| `src/parse.axle` | `Parsed`, `Source`, `parseLine`, `readLine` |
-| `src/help.axle` | `helpText` — what `parsed.help()` prints |
-| `src/args.axle` | `parseProcess`, `readProcess`, `processWords` — the process's own command line |
+| `src/input.axle` | `Input` — what the user typed, checked — `Source`, `listenTo`, `listenToRaw` |
+| `src/help.axle` | `helpText` — what `input.help()` prints |
+| `src/args.axle` | the process's own command line, behind `cmd.listen()` |
 | `src/error.axle` | `CliError`, `UsageError` and its six reasons, the `EXIT_*` statuses |
 | `src/suggest.axle` | `editDistance`, `nearestWord` — the "did you mean" |
 | `src/text.axle`, `src/list.axle` | small helpers `std` does not give: a slice that cannot throw, number parsers that answer yes or no, sequences for structs and classes held in a field |

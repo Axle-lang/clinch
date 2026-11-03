@@ -34,7 +34,7 @@
 <span class="y">EXIT_OK</span> 0   <span class="y">USAGE</span> 2   <span class="y">DATA</span> 65   <span class="y">NO_INPUT</span> 66   <span class="y">UNAVAILABLE</span> 69
 <span class="y">SOFTWARE</span> 70   <span class="y">IO</span> 74   <span class="y">NO_PERMISSION</span> 77   <span class="y">CONFIG</span> 78   <span class="y">INTERRUPTED</span> 130</div></div>
  <div class="card col"><div class="t">When an option is set in several places</div>
-  <p>One option, <span class="mono">port</span>, set four ways. <b>The strongest place answers</b>, and <span class="mono">parsed.source("port")</span> says which one it was.</p>
+  <p>One option, <span class="mono">port</span>, set four ways. <b>The strongest place answers</b>, and <span class="mono">input.source("port")</span> says which one it was.</p>
   <div class="ladder">
    <div class="rung on"><div class="where">1 · the command line</div><div class="what mono">tool serve <b>--port 80</b></div><div class="res mono">port = 80</div></div>
    <div class="rung todo"><div class="where">2 · the environment <i>(planned)</i></div><div class="what mono">TOOL_PORT=<b>9000</b></div><div class="res mono">port = 9000</div></div>

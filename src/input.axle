@@ -1,7 +1,7 @@
 // parse — a command line turned into answers.
 //
-//     let parsed : Parsed = parseLine(root, argv);
-//     let port : i64 = parsed.integer("port");
+//     let input : Input = listenTo(root, argv);
+//     let port : i64 = input.integer("port");
 //
 // The parser reads the words of `argv` against a `Command`: options in their long form (`--port 80`,
 // `--port=80`) or short (`-p 80`, `-p80`, and clusters of flags, `-abc`), the subcommand that names the
@@ -9,12 +9,12 @@
 // positional. It checks each value against the kind its option declares and refuses with a
 // `UsageError` that says what is wrong and, when it can tell, what was meant.
 //
-// `readLine` is the same without the defaults, so that the environment and a file can be offered first.
+// `listenToRaw` is the same without the defaults, so that the environment and a file can be offered first.
 //
 // What comes out remembers where each answer came from (`Source`), because an option can also be set
 // by the environment, by a config file, or by its declared default, and the person asking "why is this
 // 4?" deserves an answer. The command line wins over the environment, which wins over the file, which
-// wins over the default; `Parsed::offer` is how the lower sources add what the line did not say.
+// wins over the default; `Input::offer` is how the lower sources add what the line did not say.
 
 use crate::error::{InvalidValue, MissingArgument, MissingValue, UnexpectedArgument, UnknownCommand, UnknownOption, UsageError};
 use std::collections::ArrayList;
@@ -60,7 +60,7 @@ pub enum Source : i32 {
 }
 
 /** What was typed, read against the command it names. */
-pub class Parsed {
+pub class Input {
     /** The commands from the root down to the one the line named; the last is the one that runs. */
     pub levels       : List<Command>;
 
@@ -261,7 +261,7 @@ pub class Parsed {
 }
 
 /** The option called `name` at the deepest level that declares it, or nothing (`found == false`). */
-fn findOption(out : Parsed, name : string, letter : string) : (found: bool, opt: Opt) {
+fn findOption(out : Input, name : string, letter : string) : (found: bool, opt: Opt) {
     let mut l : i32 = out.levels.size() - 1;
     while (l >= 0) {
         let c : Command = out.levels.at(l);
@@ -275,7 +275,7 @@ fn findOption(out : Parsed, name : string, letter : string) : (found: bool, opt:
 }
 
 /** Every long option the line may use, for suggestions. */
-fn longNames(out : Parsed) : ArrayList<string> {
+fn longNames(out : Input) : ArrayList<string> {
     let names : ArrayList<string> = new ArrayList<string>();
     for (l of 0..out.levels.size()) {
         let c : Command = out.levels.at(l);
@@ -293,7 +293,7 @@ fn longNames(out : Parsed) : ArrayList<string> {
 }
 
 /** One `--name` or `--name=value`; the index of the next word to read. */
-fn longOption(out : Parsed, word : string, argv : ArrayList<string>, next : i32) : i32 ! UsageError {
+fn longOption(out : Input, word : string, argv : ArrayList<string>, next : i32) : i32 ! UsageError {
     let eq : i32 = word.indexOf("=");
     let name : string = eq < 0 ? sliceFrom(word, 2) : slice(word, 2, eq);
     let typed : string = "--" + name;
@@ -338,7 +338,7 @@ fn looksLikeOption(word : string) : bool {
 }
 
 /** `-a`, `-abc`, `-j4`, `-j 4`: letters read left to right until one takes a value. */
-fn shortOptions(out : Parsed, word : string, argv : ArrayList<string>, next : i32) : i32 ! UsageError {
+fn shortOptions(out : Input, word : string, argv : ArrayList<string>, next : i32) : i32 ! UsageError {
     let mut following : i32 = next;
     for (at of 1..word.length) {
         let letter : string = slice(word, at, at + 1);
@@ -373,7 +373,7 @@ fn shortOptions(out : Parsed, word : string, argv : ArrayList<string>, next : i3
 }
 
 /** Check `value` against what `opt` declares and record it. */
-fn storeValue(out : Parsed, opt : Opt, typed : string, value : string) : void ! UsageError {
+fn storeValue(out : Input, opt : Opt, typed : string, value : string) : void ! UsageError {
     if (!opt.accepts(value)) {
         let near : string = opt.kind == Kind::Choice ? nearestWord(value, opt.words()) : "";
         throw InvalidValue(typed, value, opt.expects(), near);
@@ -382,7 +382,7 @@ fn storeValue(out : Parsed, opt : Opt, typed : string, value : string) : void ! 
 }
 
 /** Check the positional arguments against the command that runs. */
-fn checkArguments(out : Parsed) : void ! UsageError {
+fn checkArguments(out : Input) : void ! UsageError {
     let c : Command = out.command();
     let mut needed : i32 = 0;
     let mut variadic : bool = false;
@@ -409,8 +409,8 @@ fn checkArguments(out : Parsed) : void ! UsageError {
  * Read `argv` against `root` without the defaults, so a caller can offer the environment and a file
  * first and then `seal()`.
  */
-pub fn readLine(root : Command, argv : ArrayList<string>) : Parsed ! UsageError {
-    let out : Parsed = new Parsed();
+pub fn listenToRaw(root : Command, argv : ArrayList<string>) : Input ! UsageError {
+    let out : Input = new Input();
     out.levels.add(root.copy());
     let mut i : i32 = 0;
     let mut literal : bool = false;
@@ -446,8 +446,8 @@ pub fn readLine(root : Command, argv : ArrayList<string>) : Parsed ! UsageError 
 }
 
 /** Read `argv` (the arguments after the program's name) against `root`, defaults included. */
-pub fn parseLine(root : Command, argv : ArrayList<string>) : Parsed ! UsageError {
-    let out : Parsed = readLine(root, argv);
+pub fn listenTo(root : Command, argv : ArrayList<string>) : Input ! UsageError {
+    let out : Input = listenToRaw(root, argv);
     out.seal();
     return out;
 }

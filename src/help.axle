@@ -1,6 +1,6 @@
 // help — `--help` and `--version`, written from the declaration.
 //
-//     println(parsed.help());
+//     println(input.help());
 //
 // The text is made from what the program already declared, so it cannot disagree with what the parser
 // accepts: the usage line, the arguments, the commands, the options (with their default and their choices),
