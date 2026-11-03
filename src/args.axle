@@ -1,6 +1,6 @@
 // args — the command line of the process, read against what the program declared.
 //
-//     let input : Input = spec().listen();
+//     let input : Input = listen(spec());
 //
 // A program does not walk `argc()` and `argAt()` itself: the words it was started with are read here, once,
 // and handed to the parser. `processWords()` is for the program that wants them as they are.
@@ -25,7 +25,7 @@ pub fn processWords() : ArrayList<string> {
 }
 
 /** The process's own command line, read against `root`, defaults included. */
-pub fn listenProcess(root : Command) : Input ! UsageError {
+pub fn listen(root : Command) : Input ! UsageError {
     return listenTo(root, processWords());
 }
 
@@ -33,6 +33,6 @@ pub fn listenProcess(root : Command) : Input ! UsageError {
  * The same without the defaults, so the environment and a file can be offered first and `seal()` called
  * after.
  */
-pub fn listenProcessRaw(root : Command) : Input ! UsageError {
+pub fn listenRaw(root : Command) : Input ! UsageError {
     return listenToRaw(root, processWords());
 }

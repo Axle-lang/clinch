@@ -64,7 +64,7 @@ clinch = { path = "../clinch" }
 ```
 
 ```rs
-use clinch::{Arg, Command, Input, Opt, UsageError};
+use clinch::{Arg, Command, Input, Opt, UsageError, listen};
 
 fn spec() : Command {
     let serve : Command = Command::create("serve", "Pretend to serve a folder")
@@ -79,7 +79,7 @@ fn spec() : Command {
 
 fn main() : i32 {
     try {
-        let input : Input = spec().listen();     // listen to what the user typed
+        let input : Input = listen(spec());     // listen to what the user typed
         if (input.versionAsked) {
             println(input.versionLine());              // hello 0.1.0
             return 0;
@@ -121,9 +121,9 @@ Options of the commands above:
   -v, --verbose   Say more
 ```
 
-`cmd.listen()` listens to what the user typed: the process's own command line, read against the command and
+`listen(cmd)` listens to what the user typed: the process's own command line, read against the command and
 checked. `listenTo(cmd, words)` is the same over an `ArrayList<string>` you hand it — a test, a line typed in a
-prompt. `cmd.listenRaw()` and `listenToRaw` stop before the defaults are added, so the environment and a file can
+prompt. `listenRaw(cmd)` and `listenToRaw` stop before the defaults are added, so the environment and a file can
 be offered first.
 
 ## 🔎 What it reads
@@ -161,7 +161,7 @@ lower source never replaces a higher one — is written and checked (`Input::off
 | `src/spec.axle` | `Command`, `Opt`, `Arg`, `Kind` — the declaration |
 | `src/input.axle` | `Input` — what the user typed, checked — `Source`, `listenTo`, `listenToRaw` |
 | `src/help.axle` | `helpText` — what `input.help()` prints |
-| `src/args.axle` | the process's own command line, behind `cmd.listen()` |
+| `src/args.axle` | `listen`, `listenRaw`, `processWords` — the process's own command line |
 | `src/error.axle` | `CliError`, `UsageError` and its six reasons, the `EXIT_*` statuses |
 | `src/suggest.axle` | `editDistance`, `nearestWord` — the "did you mean" |
 | `src/text.axle`, `src/list.axle` | small helpers `std` does not give: a slice that cannot throw, number parsers that answer yes or no, sequences for structs and classes held in a field |

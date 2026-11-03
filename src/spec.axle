@@ -15,9 +15,6 @@
 // and the environment too.
 
 use std::collections::ArrayList;
-use crate::args::{listenProcess, listenProcessRaw};
-use crate::error::UsageError;
-use crate::input::Input;
 use crate::list::{Copy, Values};
 use crate::text::{realNumber, slice, sliceFrom, wholeNumber};
 use std::text::StringBuilder;
@@ -436,19 +433,6 @@ pub class Command : Copy<Command> {
         self.lines.add(line);
         self.notes.add(note);
         return self;
-    }
-
-    /**
-     * Listen to what the user typed: the process's own command line, read against this command, defaults
-     * included. A mistake is a `UsageError`.
-     */
-    pub fn listen(self) : Input ! UsageError {
-        return listenProcess(self);
-    }
-
-    /** `listen` without the defaults, so the environment and a file can be offered first. */
-    pub fn listenRaw(self) : Input ! UsageError {
-        return listenProcessRaw(self);
     }
 
     /** The subcommand answering to `word` (by name or alias), or -1. */
